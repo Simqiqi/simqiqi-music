@@ -65,7 +65,8 @@ func (a *app) captionsPane(c *ui.Context, tr *netease.Track, h float32) {
 		a.lyricScroll, a.lyricGlide = ui.ScrollState{}, lyricGlide{}
 	}
 	lag := a.lyricGlide.step(c, &a.lyricScroll)
-	scroll := ui.Scroll(c.Key("captions")).Grow(1).TrackScroll(&a.lyricScroll).Padding(0, 8, h*0.5, 0)
+	// As the lyrics pane: no scrollbar at the pane's edge.
+	scroll := ui.Scroll(c.Key("captions")).Grow(1).TrackScroll(&a.lyricScroll).Padding(0, 8, h*0.5, 0).ScrollbarInsets(0, -40, 0, 0)
 	a.timedLines(c, scroll, lines, pos, cur, lag, linesStyle{size: 24, weight: 700, lineHeight: 1.4}, func() {
 		if cs.work != nil {
 			ui.Text(c, "正在识别…").FontSize(14).FontWeight(600).TextColor(white.Alpha(0.35)).Padding(16, 12)
@@ -136,6 +137,7 @@ func megabytes(n int64) string {
 func (a *app) captionSettings(row func(label, desc string, control func()), c *ui.Context) {
 	m := &a.captions.model
 	s := &a.settings
+	p := a.pal
 	row("播客字幕", "播放节目时在本机转写语音，生成可滚动的字幕；转写时会多用一些电量", func() {
 		if ui.Switch(c.Key("captions"), &s.Captions).Label("播客字幕").Disabled(!a.modelReady()).Changed() {
 			a.changed()
@@ -154,15 +156,15 @@ func (a *app) captionSettings(row func(label, desc string, control func()), c *u
 	row("语音识别模型", desc, func() {
 		switch {
 		case m.downloading:
-			if ui.Button(c.Key("model"), "取消").Clicked() {
+			if rowButton(c, "model", "取消", p).Clicked() {
 				a.cancelModelDownload()
 			}
 		case a.modelReady():
-			if ui.Button(c.Key("model"), "删除").Clicked() {
+			if rowButton(c, "model", "删除", p).Clicked() {
 				a.deleteModel()
 			}
 		default:
-			if ui.Button(c.Key("model"), "下载").Clicked() {
+			if rowButton(c, "model", "下载", p).Clicked() {
 				a.startModelDownload()
 			}
 		}

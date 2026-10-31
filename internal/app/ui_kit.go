@@ -113,7 +113,8 @@ func roundButton(c *ui.Context, size float32, color ui.Color, label string) ui.E
 	return b
 }
 
-// pillButton is a rounded button with an icon and a label.
+// pillButton is a rounded button with an icon and a label, which lights
+// under the pointer and gives a little as it is pressed.
 func pillButton(c *ui.Context, icon *ui.SVG, label string, bg, fg ui.Color) ui.Element {
 	b := ui.ButtonBase(c).Height(36).PaddingX(18).Gap(8).Radius(999).AlignItems(ui.Center).TextColor(fg)
 	fill := bg
@@ -131,6 +132,66 @@ func pillButton(c *ui.Context, icon *ui.SVG, label string, bg, fg ui.Color) ui.E
 			ui.Icon(c, icon).Size(14, 14)
 		}
 		ui.Text(c, label).FontSize(14).FontWeight(600).SingleLine()
+	})
+	return b
+}
+
+// fieldSelect is the drop-down of a settings row: a quiet pill showing the
+// choice, its chevron turning as it opens onto a card of options, the one
+// chosen marked with a check. The theme's select reads as a form control
+// of its own; this one sits among the row's switches and buttons.
+func fieldSelect(c *ui.Context, chosen *string, options []string, p palette) ui.Element {
+	sel := ui.SelectBase(c, chosen)
+	tr := sel.Trigger.Height(32).Padding(0, 6, 0, 12).Gap(6).Radius(10).AlignItems(ui.Center).Label(*chosen)
+	fill := p.hover
+	if tr.Hovered() {
+		fill = p.press
+	}
+	tr.Background(tr.AnimateColor("bg", fill, ui.Animation{Duration: 120 * time.Millisecond}))
+	chevron := ui.Pose{}
+	if sel.Open() {
+		chevron.Rotate = 180
+	}
+	tr.Children(func() {
+		ui.Text(c, *chosen).FontSize(13).FontWeight(500).SingleLine()
+		ui.Icon(c, iconDown).Size(13, 13).TextColor(p.muted).AnimatePose(chevron, ui.Snappy)
+	})
+	sel.Popup(func(panel ui.Element) {
+		panel.MinWidth(190).Padding(5).Radius(14).Background(p.bg).Border(1, p.hairline).
+			Shadow(0, 18, 44, -10, ui.RGBA(0, 0, 0, 0.32)).
+			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.97, Y: -4}, Exit: &ui.Motion{Opacity: 0}})
+		for _, o := range options {
+			option := o
+			it := sel.Item(option).Padding(7, 10).Radius(9).Gap(8).AlignItems(ui.Center)
+			if it.Highlighted() {
+				it.Background(p.hover)
+			}
+			picked := option == *chosen
+			it.Children(func() {
+				ui.Text(c, option).FontSize(13).Grow(1).SingleLine()
+				if picked {
+					ui.Icon(c, iconCheck).Size(13, 13).TextColor(p.accent)
+				}
+			})
+		}
+	})
+	return sel.Trigger
+}
+
+// rowButton is the small button of a settings row: a quiet pill that
+// lights under the pointer, the size of the row's other controls.
+func rowButton(c *ui.Context, key, label string, p palette) ui.Element {
+	b := ui.ButtonBase(c.Key(key)).Height(30).PaddingX(14).Radius(999).AlignItems(ui.Center).Label(label)
+	fill := p.hover
+	if b.Hovered() {
+		fill = p.press
+	}
+	b.Background(b.AnimateColor("bg", fill, ui.Animation{Duration: 120 * time.Millisecond}))
+	if b.Pressed() {
+		b.AnimatePose(ui.Pose{Scale: 0.96}, ui.Snappy)
+	}
+	b.Children(func() {
+		ui.Text(c, label).FontSize(13).FontWeight(500).SingleLine()
 	})
 	return b
 }

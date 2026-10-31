@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -37,13 +38,27 @@ func (a *app) settingsSheet(c *ui.Context) {
 		return
 	}
 	p := a.pal
+	// Liquid Glass: the card is a pane of it, as the sidebar and the
+	// player bar are, so the settings sit on one capsule of the page's
+	// own color rather than in a box of their own.
+	liquid := a.settings.glassOn()
 	ui.DialogBase(c.Key("settings"), &a.settingsOpen, func(backdrop, panel ui.Element) {
-		backdrop.Background(ui.RGBA(0, 0, 0, 0.3))
+		// Glass bends what it shows: dim less of the page away, that it
+		// has something to bend.
+		dim := float32(0.3)
+		if liquid {
+			dim = 0.22
+		}
+		backdrop.Background(ui.RGBA(0, 0, 0, dim))
 		// A share of the window, but never more than a card need be: the
 		// body scrolls inside it.
-		panel.Width(520).HeightPercent(86).MaxHeight(760).Radius(22).Gap(0).
-			Background(p.bg).Border(1, p.hairline).Shadow(0, 34, 80, -18, ui.RGBA(0, 0, 0, 0.5)).
+		panel.Width(520).HeightPercent(86).MaxHeight(760).Radius(22).Gap(0).Clip().
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.96, Y: 10}, Exit: &ui.Motion{Scale: 0.98, Opacity: 0}})
+		if liquid {
+			panel.Material(glass.Glass{Clarity: 0.5}).Shadow(0, 30, 70, -14, ui.RGBA(0, 0, 0, 0.28))
+		} else {
+			panel.Background(p.bg).Border(1, p.hairline).Shadow(0, 34, 80, -18, ui.RGBA(0, 0, 0, 0.5))
+		}
 		// A head that stays, above what scrolls under it.
 		ui.Row(c).Padding(15, 18, 11, 14).Gap(10).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "设置").FontSize(15.5).FontWeight(700).Grow(1)
@@ -53,7 +68,7 @@ func (a *app) settingsSheet(c *ui.Context) {
 		})
 		ui.Box(c).Height(1).Background(p.hairline)
 		ui.Scroll(c).Grow(1).Shrink(1).Padding(16, 18, 22, 18).Gap(8).Children(func() {
-			a.settingsBody(c, p)
+			a.settingsBody(c, p, liquid)
 		})
 	})
 }
@@ -61,18 +76,28 @@ func (a *app) settingsSheet(c *ui.Context) {
 // settingsTestView renders the settings body for a test, as the card
 // shows it.
 func (a *app) settingsTestView(c *ui.Context) {
-	a.settingsBody(c, paletteFor(c.Theme()))
+	a.settingsBody(c, paletteFor(c.Theme()), false)
 }
 
 // settingsBody draws the settings themselves: groups of rows, in the order
-// a listener would look for them.
-func (a *app) settingsBody(c *ui.Context, p palette) {
+// a listener would look for them. On glass, the groups are washes over it
+// rather than boxes of their own, so the card reads as one pane.
+func (a *app) settingsBody(c *ui.Context, p palette, liquid bool) {
 	s := &a.settings
+	// A step up from the card's ground, which the glass itself is.
+	ground := p.sidebar
+	switch {
+	case liquid && p.dark:
+		ground = ui.RGBA(255, 255, 255, 0.06)
+	case liquid:
+		ground = ui.RGBA(255, 255, 255, 0.42)
+	}
 	group := func(title string, rows func()) {
 		ui.Text(c, title).FontSize(12).FontWeight(600).TextColor(p.muted).Margin(14, 4, 4, 4)
 		// On the card's ground, each group is a step of its own: the
-		// quieter tone the window's sidebar would use.
-		ui.Column(c).Radius(12).Background(p.sidebar).Border(1, p.hairline).Dividers(1, p.hairline).Children(rows)
+		// quieter tone the window's sidebar would use, or a wash of the
+		// glass.
+		ui.Column(c).Radius(12).Background(ground).Border(1, p.hairline).Dividers(1, p.hairline).Children(rows)
 	}
 	row := func(label, desc string, control func()) {
 		ui.Row(c).Padding(12, 16).Gap(16).AlignItems(ui.Center).MinHeight(48).Children(func() {
@@ -99,7 +124,7 @@ func (a *app) settingsBody(c *ui.Context, p palette) {
 						chosen = ic.label
 					}
 				}
-				if ui.Select(c.Key("app-icon"), &chosen, labels).Label("应用图标").Width(150).Changed() {
+				if fieldSelect(c.Key("app-icon"), &chosen, labels, p).Changed() {
 					for _, ic := range appIcons {
 						if ic.label == chosen {
 							s.AppIcon = ic.id
@@ -143,7 +168,7 @@ func (a *app) settingsBody(c *ui.Context, p palette) {
 					chosen = q.label
 				}
 			}
-			if ui.Select(c.Key("quality"), &chosen, labels).Label("音质").Width(150).Changed() {
+			if fieldSelect(c.Key("quality"), &chosen, labels, p).Changed() {
 				for _, q := range qualityLevels {
 					if q.label == chosen {
 						s.Quality = q.level
@@ -179,7 +204,7 @@ func (a *app) settingsBody(c *ui.Context, p palette) {
 					chosen = l.label
 				}
 			}
-			if ui.Select(c.Key("cache"), &chosen, labels).Label("歌曲缓存").Width(150).Changed() {
+			if fieldSelect(c.Key("cache"), &chosen, labels, p).Changed() {
 				for _, l := range cacheLimits {
 					if l.label == chosen {
 						s.CacheMB = l.mb
@@ -190,7 +215,7 @@ func (a *app) settingsBody(c *ui.Context, p palette) {
 			}
 		})
 		row("清除缓存", "删除保存在本机的全部歌曲", func() {
-			if ui.Button(c.Key("clear-cache"), "清除").Disabled(a.cacheUsed <= 0).Clicked() {
+			if rowButton(c, "clear-cache", "清除", p).Disabled(a.cacheUsed <= 0).Clicked() {
 				a.clearCache()
 			}
 		})
@@ -262,7 +287,7 @@ func (a *app) settingsBody(c *ui.Context, p palette) {
 				ui.Text(c, prof.Nickname).FontSize(13.5).FontWeight(600)
 				ui.Text(c, "已登录网易云音乐").FontSize(12).TextColor(p.muted)
 			})
-			if ui.Button(c.Key("logout"), "退出登录").Clicked() {
+			if rowButton(c, "logout", "退出登录", p).Clicked() {
 				a.signOut()
 			}
 		})
@@ -287,7 +312,7 @@ func (a *app) settingsBody(c *ui.Context, p palette) {
 				}
 			})
 			row("当前版本 "+mygo.App.Version(), "", func() {
-				if ui.Button(c.Key("check-updates"), "检查更新").Clicked() {
+				if rowButton(c, "check-updates", "检查更新", p).Clicked() {
 					checkForUpdates()
 				}
 			})
