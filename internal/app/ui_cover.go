@@ -208,6 +208,10 @@ func (a *app) npCover(c *ui.Context, tr *netease.Track, art *artwork, size float
 	}
 
 	wrap.Children(func() {
+		if a.settings.Vinyl {
+			a.vinylDisc(c, art, size)
+			return
+		}
 		// The cover breathes: smaller while paused, a little nearer under
 		// the pointer.
 		scale := float32(1)

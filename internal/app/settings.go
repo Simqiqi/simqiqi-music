@@ -52,6 +52,10 @@ type settings struct {
 	// rising and swelling with the bass: an experiment the listener turns
 	// on.
 	Fog bool `json:"fog"`
+	// Vinyl turns Now Playing's cover into a record on a platter, its
+	// label the cover itself, spinning while the music plays and freezing,
+	// mid-spin, when it stops: the listener turns it on.
+	Vinyl bool `json:"vinyl,omitempty"`
 	// AppIcon is where the app's icon shows on macOS (appIcons); elsewhere
 	// it is always in the notification area.
 	AppIcon string `json:"appIcon"`

@@ -175,6 +175,7 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 						ui.Text(c, tr.Name).FontSize(22).FontWeight(700).LetterSpacing(-0.3).SingleLine()
 						a.artistLinks(c, tr, white.Alpha(0.6), white, true).FontSize(15).SingleLine()
 					})
+					a.vinylButton(c.Key("vinyl"), accent)
 					a.likeButton(c.Key("like"), tr, 22, white.Alpha(0.7))
 					a.songMenu(c.Key("more"), tr, 22, white.Alpha(0.7)).Margin(0, -8, 0, 0)
 				})
