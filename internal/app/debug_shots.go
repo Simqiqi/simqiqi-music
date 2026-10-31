@@ -144,6 +144,14 @@ func init() {
 				mygo.RunOnMain(mygo.App.Quit)
 				return
 			}
+			if os.Getenv("NM_SCENE") == "dev" {
+				time.Sleep(3 * time.Second)
+				step(0, func() { a.openSettings() })
+				time.Sleep(2 * time.Second)
+				shot("dev-settings", a.settingsWin)
+				mygo.RunOnMain(mygo.App.Quit)
+				return
+			}
 			if os.Getenv("NM_SCENE") == "np" {
 				time.Sleep(5 * time.Second)
 				shot("q-home", a.win)

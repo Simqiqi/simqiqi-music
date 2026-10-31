@@ -282,5 +282,8 @@ func (a *app) settingsView(c *ui.Context) {
 				})
 			})
 		}
+
+		// At the very foot: who keeps this, and where they are found.
+		group("开发者", func() { a.developerCard(c, p) })
 	})
 }
