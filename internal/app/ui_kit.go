@@ -269,10 +269,12 @@ func (st *barState) group(from, to int) float32 {
 func drawBars(p *ui.Painter, r ui.Rect, st *barState, n int, color ui.Color, minH float32) {
 	gap := r.W / float32(n) * 0.38
 	w := (r.W - gap*float32(n-1)) / float32(n)
-	per := player.Bands / n
 	for i := range n {
-		// Shape the response: low bands are loud already.
-		v := st.group(i*per, (i+1)*per)
+		// Shape the response: low bands are loud already. The bands are
+		// dealt out over the bars in proportion, so a count that does not
+		// divide the bands evenly still shares them all out.
+		from, to := i*player.Bands/n, (i+1)*player.Bands/n
+		v := st.group(from, max(from+1, to))
 		v = v * v * 1.15
 		h := max(minH, min(r.H, r.H*v))
 		x := r.X + float32(i)*(w+gap)

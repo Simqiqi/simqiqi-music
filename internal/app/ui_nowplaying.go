@@ -9,6 +9,7 @@ import (
 
 	"netease-music-mygo/internal/lyrics"
 	"netease-music-mygo/internal/netease"
+	"netease-music-mygo/internal/player"
 )
 
 var white = ui.RGB(255, 255, 255)
@@ -167,7 +168,22 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 				coverTop = ui.Box(c.Key("cover-top")).Height(0).LayoutBounds().Y
 				a.npCover(c, tr, art, coverSize)
 
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(36, 0, 18, 0).Children(func() {
+				// A slim spectrum under the cover, dancing with the music:
+				// the same bands the notch shows, drawn thin, and kept as
+				// wide as the cover above, so the two sit evenly together
+				// and the bars hold clear of the lyrics pane.
+				ui.Box(c.Key("spectrum")).Width(coverSize).Height(16).
+					AlignSelf(ui.Center).Margin(16, 0, 0, 0).
+					Draw(func(p *ui.Painter, r ui.Rect) {
+						lv, live := pl.Levels()
+						a.npBars.step(p.Now(), lv, live)
+						drawBars(p, r, &a.npBars, 24, accent.Mix(white, 0.3), 2)
+						if live || a.npBars.group(0, player.Bands) > 0.01 {
+							p.AnimationFrameRate(30)
+						}
+					})
+
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(16, 0, 14, 0).Children(func() {
 					ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
 						if r := pl.Radio(); r != "" {
 							a.radioChip(c, r)
@@ -468,6 +484,12 @@ type linesStyle struct {
 	quiet      bool
 }
 
+// charKey tells apart the characters of a sung line's words, for the
+// fill that sweeps through them.
+type charKey struct {
+	word, char int
+}
+
 // timedLines fills scroll with lines that follow the track playing at
 // pos: the line at cur lit, and brought to a third of the way down once
 // it changes, but none with cur -1 before the first; a click on one seeks
@@ -506,11 +528,21 @@ func (a *app) timedLines(c *ui.Context, scroll ui.Element, lines []lyrics.Line, 
 					text.AnimatePose(ui.Pose{Fade: 1 - alpha}, ui.Animation{Duration: 380 * time.Millisecond})
 					text.Children(func() {
 						if on && len(l.Words) > 0 {
-							// The line sung lights up word by word as it is sung.
+							// The line sung fills character by character, as
+							// karaoke does: each word knows when it starts
+							// and ends, and the fill sweeps through its
+							// characters in that time, rather than lighting
+							// the word whole at once.
 							ui.RichText(c.Key("words")).FontSize(st.size).FontWeight(st.weight).LineHeight(st.lineHeight).LetterSpacing(-0.4).Children(func() {
 								for wi, wd := range l.Words {
-									lit := clamp01(float32((pos - wd.Start).Seconds() / max(0.05, (wd.End-wd.Start).Seconds())))
-									ui.Text(c.Key(wi), wd.Text).TextColor(white.Alpha(0.38 + 0.62*lit))
+									p := clamp01(float32((pos - wd.Start).Seconds() / max(0.05, (wd.End-wd.Start).Seconds())))
+									runes := []rune(wd.Text)
+									for ci, ch := range runes {
+										// How far the fill has come through
+										// this character of the word.
+										lit := clamp01(p*float32(len(runes)) - float32(ci))
+										ui.Text(c.Key(charKey{wi, ci}), string(ch)).TextColor(white.Alpha(0.38 + 0.62*lit))
+									}
 								}
 							})
 							if pl.Playing() {

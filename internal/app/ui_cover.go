@@ -101,17 +101,16 @@ func (a *app) npCover(c *ui.Context, tr *netease.Track, art *artwork, size float
 		// A new cover's first frame: it shows where it comes in from.
 		cs.off, cs.enter = ui.Point{X: cs.enter}, 0
 	}
-	// Another song, not flung to, comes in from the side it is on in the
-	// play order, and the cover before goes off the other way.
+	// Another song, not flung to, and the cover before shrinks and fades
+	// where it stands while the one coming springs up in its place: a
+	// zoom between the two songs, rather than a slide.
 	var enter *ui.Motion
-	if order, at := pl.PlayOrder(); cs.track != tr.ID {
+	if _, at := pl.PlayOrder(); cs.track != tr.ID {
 		if cs.exit != nil && !entering {
-			dir := float32(stepDir(cs.at, at, len(order)))
-			// Its copy leaves from this frame on, which first knows the way.
-			cs.exit.X = -dir * size * 0.5
-			enter = &ui.Motion{X: dir * size * 0.5, Scale: 0.92}
+			cs.exit.Scale, cs.exit.Opacity = 0.8, 0
+			enter = &ui.Motion{Scale: 0.8, Opacity: 0}
 		}
-		cs.track, cs.at, cs.exit = tr.ID, at, &ui.Motion{Scale: 0.92}
+		cs.track, cs.at, cs.exit = tr.ID, at, &ui.Motion{Scale: 0.8, Opacity: 0}
 	}
 	exit := cs.exit
 	if cs.flung != 0 {

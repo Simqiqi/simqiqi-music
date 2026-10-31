@@ -68,6 +68,7 @@ type app struct {
 	daily       []netease.Track
 	dailySpin   spinState // the record on the daily card
 	dailyBars   barState  // the bars on its play button
+	npBars      barState  // the spectrum under Now Playing's cover
 	featured    []netease.Playlist
 	charts      []netease.Playlist
 	homeErr     string
