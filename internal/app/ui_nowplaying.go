@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/lyrics"
@@ -184,13 +183,9 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 						}
 					})
 
-				// Liquid Glass: what plays, its progress and its controls
-				// sit on a pane of it, a step above the backdrop, as the
-				// sidebar floats over the pages.
+				// What plays, its progress and its controls, on the
+				// backdrop itself rather than on a pane over it.
 				info := ui.Column(c).Gap(0)
-				if a.settings.glassOn() {
-					info.Padding(12, 14, 8, 14).Radius(22).Material(glass.Glass{Clarity: 0.4})
-				}
 				info.Children(func() {
 					ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(16, 0, 14, 0).Children(func() {
 						ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
@@ -670,6 +665,15 @@ func (g *lyricGlide) step(c *ui.Context, s *ui.ScrollState) float32 {
 
 // queuePane lists the whole queue in play order, the track playing marked
 // among the others: a click plays one there, and the list stays as it is.
+// queueDrag is a row of the queue on its way to another place: where it
+// was taken from, where it would land, and how far the pointer has
+// carried it from where it stood.
+type queueDrag struct {
+	from, to int // rows in the play order; from is -1 when none is dragged
+	off      ui.Point
+	moving   bool // it has left its place
+}
+
 func (a *app) queuePane(c *ui.Context) {
 	pl := a.pl
 	order, at := pl.PlayOrder()
@@ -684,6 +688,11 @@ func (a *app) queuePane(c *ui.Context) {
 		a.queueAt = at
 	}
 	a.queueList.Key = func(row int) any { return order[row] }
+	// A row may be carried elsewhere in the queue: pressed, it comes with
+	// the pointer, the rows it passes making room, and lands where it
+	// shows. A press let go where it began is only a click.
+	const queueRow = 60 // a row and the gap under it
+	d := &a.queueDrag
 	ui.List(c.Key("queue"), &a.queueList, len(order), func(r int) {
 		i := order[r]
 		tr := &pl.Queue()[i]
@@ -699,6 +708,35 @@ func (a *app) queuePane(c *ui.Context) {
 		if !tr.Playable() {
 			row.Opacity(0.4)
 		}
+		if d.from == r {
+			row.Draggable(&d.off, ui.DraggableOptions{Axis: ui.Vertical})
+			if row.Dragging() {
+				d.moving = true
+			}
+			if d.moving {
+				// It is a pane of glass lifted off the list: shadowed, and
+				// slightly apart from what it passes.
+				d.to = min(max(d.from+int(math.Round(float64(d.off.Y/queueRow))), 0), len(order)-1)
+				row.Shadow(0, 14, 32, -8, a.pal.cardShade).Background(white.Alpha(0.16))
+			} else if !row.Pressed() && !row.Dragging() {
+				// Let go where it was taken: no errand.
+				d.from = -1
+			}
+			if d.moving && !row.Dragging() && !row.Pressed() {
+				from, to := d.from, d.to
+				d.from, d.moving = -1, false
+				d.off = ui.Point{}
+				pl.Move(from, to)
+			}
+		} else if d.moving {
+			// Room for it: what it passed moves up, or down, one row.
+			switch {
+			case d.from < r && r <= d.to:
+				row.AnimatePose(ui.Pose{Y: -queueRow}, ui.Snappy)
+			case r >= d.to && r < d.from:
+				row.AnimatePose(ui.Pose{Y: queueRow}, ui.Snappy)
+			}
+		}
 		row.Children(func() {
 			a.cover(c, tr.Album.PicURL, 96, 42, 7)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
@@ -707,6 +745,9 @@ func (a *app) queuePane(c *ui.Context) {
 			})
 			ui.Text(c, clock(tr.Length())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.4))
 		})
+		if row.Pressed() && d.from < 0 {
+			d.from, d.to, d.off, d.moving = r, r, ui.Point{}, false
+		}
 		if row.Clicked() && tr.Playable() && !playing {
 			pl.Jump(i)
 		}

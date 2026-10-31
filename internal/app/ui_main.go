@@ -396,8 +396,15 @@ func edgeShown(el ui.Element, under bool) float32 {
 // the back button once there is a page to go back to.
 func (a *app) pageTop(c *ui.Context) {
 	top, _ := a.insets(c)
-	edge := ui.Box(c.Key("top-edge")).Absolute().Top(0).Left(0).Right(0).Height(top).DragWindow().
-		Material(glass.ScrollEdge{Hard: true, Background: a.pal.bg})
+	// Liquid Glass: the strip is a pane of it, the page's content bending
+	// and frosting under its rim as it scrolls by; else, macOS 26's hard
+	// scroll edge, which frosts what passes under it against the page's
+	// ground.
+	var mat ui.Material = glass.ScrollEdge{Hard: true, Background: a.pal.bg}
+	if a.settings.glassOn() {
+		mat = glass.Glass{Clarity: 0.45}
+	}
+	edge := ui.Box(c.Key("top-edge")).Absolute().Top(0).Left(0).Right(0).Height(top).DragWindow().Material(mat)
 	edge.Opacity(edgeShown(edge, a.underTop))
 	if len(a.history) > 0 || len(a.forward) > 0 {
 		ui.Row(c).Absolute().Top(0).Left(20).Height(topBar(c)).AlignItems(ui.Center).Children(func() {

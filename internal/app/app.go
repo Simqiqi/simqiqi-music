@@ -109,7 +109,8 @@ type app struct {
 	lyricAt     int
 	lyricTrack  int64
 	queueList   ui.ListState
-	queueAt     int // the row of the queue pane last scrolled to, -1 while it is hidden
+	queueAt     int       // the row of the queue pane last scrolled to, -1 while it is hidden
+	queueDrag   queueDrag // the queue's row being carried elsewhere, if one is
 	comments    commentState
 	tabCount    rollState // the count on the comments' tab, as it rolls
 
@@ -121,6 +122,7 @@ type app struct {
 	volume     float64
 	volumeOpen bool // the volume popover of the player bar shows
 	mutedFrom  float64
+	sleep      *sleepTimer // the sleep timer, if the listener set one
 
 	rowBars barState
 	// underTop and underBottom say whether the page has content under its
@@ -201,7 +203,9 @@ func Run() error {
 		searches:   map[route]*searchData{},
 		lyricAt:    -1,
 		queueAt:    -1,
+		queueDrag:  queueDrag{from: -1},
 		cacheUsed:  -1,
+		sleep:      &sleepTimer{},
 	}
 	moveOldData()
 	a.useUpdater()

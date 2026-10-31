@@ -357,8 +357,14 @@ func (a *app) playerBar(c *ui.Context) {
 	// frosted and bent along its rim; else, while content is under the
 	// bar, its edge frosts it, with a hairline along the top.
 	liquid := a.settings.glassOn()
+	var shell, hot ui.Element
 	if liquid {
-		ui.Box(c.Key("bottom-edge")).Absolute().Left(12).Right(12).Bottom(8).Height(glassBarHeight).Radius(22).
+		// A still plate where the bar rests: the pointer over it lifts the
+		// bar, and stays over it as the bar moves, rather than blinking at
+		// its very edge.
+		hot = ui.Box(c.Key("bottom-hot")).Absolute().Left(12).Right(12).Bottom(8).Height(glassBarHeight).
+			Background(ui.RGBA(0, 0, 0, 0.002))
+		shell = ui.Box(c.Key("bottom-edge")).Absolute().Left(12).Right(12).Bottom(8).Height(glassBarHeight).Radius(22).
 			Material(glass.Glass{})
 	} else {
 		edge := ui.Box(c.Key("bottom-edge")).Absolute().Left(0).Right(0).Bottom(0).Height(playerBarHeight).
@@ -368,7 +374,7 @@ func (a *app) playerBar(c *ui.Context) {
 	// The controls keep the middle, between sides that share what is left:
 	// narrower, the middle gives up to 140 DIPs, and what plays keeps room
 	// for its cover, some of its title and its heart.
-	const controls = 3*32 + 2*4 // lyrics, queue and the speaker
+	const controls = 4*32 + 2*4 // lyrics, queue, the moon and the speaker
 	bar := ui.Row(c).Absolute().PaddingX(20).Gap(20).AlignItems(ui.Center)
 	if liquid {
 		bar.Left(12).Right(12).Bottom(8).Height(glassBarHeight).PaddingX(16)
@@ -451,7 +457,19 @@ func (a *app) playerBar(c *ui.Context) {
 			if iconButton(c.Key("queue"), iconQueue, 16, p.muted, "播放队列").Clicked() && tr != nil {
 				a.nowPlaying, a.npPane = true, paneQueue
 			}
+			a.sleepButton(c, p.text.Alpha(0.75), p.accent)
 			a.volumeButton(c, p.text.Alpha(0.75))
 		})
 	})
+	if liquid {
+		// Over it, the bar lifts a little, as a pane of glass rising to be
+		// touched; the content under it carries on behind.
+		lift := float32(0)
+		if hot.Hovered() {
+			lift = 2
+		}
+		v := bar.AnimateTo("lift", lift, ui.Animation{Duration: 180 * time.Millisecond})
+		shell.Translate(0, -v)
+		bar.Translate(0, -v)
+	}
 }

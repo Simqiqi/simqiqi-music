@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -169,6 +170,119 @@ func (a *app) coverCard(c *ui.Context, name, cover string, playCount float64, su
 	return card.Clicked()
 }
 
+// coverArt draws a cover; having none, it draws a quiet color taken from
+// the name, rather than a gray box.
+func (a *app) coverArt(c *ui.Context, cover, name string, px int, radius float32) {
+	if cover != "" {
+		a.coverFill(c, cover, px, radius)
+		return
+	}
+	a.coverTint(c, name, radius)
+}
+
+// playlistCover draws what a playlist looks like: its own cover, or, with
+// none, the covers of the songs it holds in four, as a record of them.
+func (a *app) playlistCover(c *ui.Context, pl *netease.Playlist, px int, radius float32) {
+	if cover := pl.Cover(); cover != "" {
+		a.coverFill(c, cover, px, radius)
+		return
+	}
+	var covers []string
+	for _, tr := range pl.Tracks {
+		if tr.Album.PicURL == "" {
+			continue
+		}
+		covers = append(covers, tr.Album.PicURL)
+		if len(covers) == 4 {
+			break
+		}
+	}
+	if len(covers) < 4 {
+		a.coverTint(c, pl.Name, radius)
+		return
+	}
+	// Four covers, each rounded a little, with a seam between them: a
+	// mosaic left round at its corners, which no clip has to cut.
+	inner := max(0, radius-5)
+	ui.Column(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Gap(2).Children(func() {
+		for r := 0; r < 2; r++ {
+			ui.Row(c).Grow(1).Basis(0).Gap(2).Children(func() {
+				for i := r * 2; i < r*2+2; i++ {
+					ui.Box(c).Grow(1).Basis(0).Radius(inner).Children(func() {
+						a.coverFill(c, covers[i], px, inner)
+					})
+				}
+			})
+		}
+	})
+}
+
+// coverTint stands in for a cover an item has not: a quiet color of its
+// own name, a note on it, so that a playlist without a picture still looks
+// like something rather than a gap.
+func (a *app) coverTint(c *ui.Context, name string, radius float32) {
+	h := nameHue(name)
+	from, to := hueTint(h, 0.30, 0.74), hueTint(h+24, 0.36, 0.56)
+	if a.pal.dark {
+		from, to = hueTint(h, 0.34, 0.44), hueTint(h+24, 0.40, 0.27)
+	}
+	box := ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).Center()
+	box.Draw(func(p *ui.Painter, r ui.Rect) {
+		p.FillGradient(r, ui.LinearGradient{Angle: 145, Oklab: true, Stops: []ui.GradientStop{
+			{Color: from, At: 0}, {Color: to, At: 1},
+		}}, radius)
+	})
+	box.Children(func() {
+		n := max(13, radius*2.1)
+		ui.Icon(c, iconNote).Size(n, n).TextColor(ui.RGBA(255, 255, 255, 0.5))
+	})
+}
+
+// nameHue is where a name falls on the wheel, always the same place: two
+// playlists of a name share a color, and neighbors rarely do.
+func nameHue(name string) float32 {
+	h := uint32(2166136261)
+	for _, r := range name {
+		h ^= uint32(r)
+		h *= 16777619
+	}
+	return float32(h % 360)
+}
+
+// hueTint is the color at hue h, muted to saturation s and lightness l.
+func hueTint(h, s, l float32) ui.Color {
+	seg := math.Mod(math.Mod(float64(h), 360)+360, 360) / 60
+	c := (1 - absf(2*l-1)) * s
+	x := c * (1 - absf(float32(math.Mod(seg, 2))-1))
+	switch int(seg) {
+	case 0:
+		return toneRGB(c, x, 0, l, c)
+	case 1:
+		return toneRGB(x, c, 0, l, c)
+	case 2:
+		return toneRGB(0, c, x, l, c)
+	case 3:
+		return toneRGB(0, x, c, l, c)
+	case 4:
+		return toneRGB(x, 0, c, l, c)
+	default:
+		return toneRGB(c, 0, x, l, c)
+	}
+}
+
+func toneRGB(r, g, b, l, c float32) ui.Color {
+	m := l - c/2
+	to := func(v float32) uint8 { return uint8(min(1, max(0, v+m))*255 + 0.5) }
+	return ui.RGB(to(r), to(g), to(b))
+}
+
+func absf(v float32) float32 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
 // coverFill fills its parent with a cover, its corners rounded by radius.
 // The cover rounds itself rather than its parent clipping it: a clip moved
 // by a transform, as a card lifting under the pointer, is drawn on the CPU.
@@ -214,7 +328,7 @@ func (a *app) chartCard(c *ui.Context, pl *netease.Playlist) {
 	card.Background(card.AnimateColor("bg", bg, ui.Animation{Duration: 140 * time.Millisecond}))
 	card.Children(func() {
 		ui.Box(c).Size(84, 84).Radius(9).Shadow(0, 3, 10, -2, p.cardShade).Children(func() {
-			a.coverFill(c, pl.Cover(), 200, 9)
+			a.coverArt(c, pl.Cover(), pl.Name, 200, 9)
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(5).Children(func() {
 			ui.Row(c).Gap(6).AlignItems(ui.Baseline).Children(func() {
@@ -256,7 +370,7 @@ func (a *app) playlistHeader(c *ui.Context, pl *netease.Playlist) {
 	p := a.pal
 	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
 		ui.Box(c).Size(212, 212).Radius(14).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
-			a.coverFill(c, pl.Cover(), 600, 14)
+			a.playlistCover(c, pl, 600, 14)
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
 			kind := "歌单"

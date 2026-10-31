@@ -430,6 +430,32 @@ func (p *Player) Jump(i int) {
 	}
 }
 
+// Move moves the track at from in the play order to to, the tracks
+// between closing up and opening for it: what plays plays on, wherever it
+// now stands among them.
+func (p *Player) Move(from, to int) {
+	n := len(p.order)
+	if from == to || from < 0 || to < 0 || from >= n || to >= n {
+		return
+	}
+	v := p.order[from]
+	if from < to {
+		copy(p.order[from:to], p.order[from+1:to+1])
+	} else {
+		copy(p.order[to+1:from+1], p.order[to:from])
+	}
+	p.order[to] = v
+	switch {
+	case p.at == from:
+		p.at = to
+	case from < p.at && to >= p.at:
+		p.at--
+	case from > p.at && to <= p.at:
+		p.at++
+	}
+	p.sync()
+}
+
 // TogglePlay pauses, fading out, or plays, fading in.
 func (p *Player) TogglePlay() {
 	if p.out == nil {
@@ -466,6 +492,34 @@ func (p *Player) TogglePlay() {
 	}
 	p.fade.fade(1, fadeIn, nil)
 	p.armTail(p.gen)
+	p.sync()
+}
+
+// FadeOutAndPause leaves the music over d, rather than cutting it, then
+// pauses: how the sleep timer ends the night, and how a song handed over
+// to silence goes. Short, it is a cut; long, it is the last sound of the
+// evening.
+func (p *Player) FadeOutAndPause(d time.Duration) {
+	p.playing = false
+	out := p.out
+	if out == nil {
+		p.sync()
+		return
+	}
+	if d <= 0 {
+		p.fade.attach(out, 0)
+		out.Pause()
+		p.sync()
+		return
+	}
+	p.fade.fade(0, d, func() {
+		p.post(func() {
+			if p.out == out && !p.playing {
+				out.Pause()
+				p.sync()
+			}
+		})
+	})
 	p.sync()
 }
 

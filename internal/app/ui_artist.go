@@ -326,7 +326,13 @@ func (a *app) scrollPage(c *ui.Context, content func()) {
 
 // empty says a list has nothing in it.
 func (a *app) empty(c *ui.Context, msg string) {
-	ui.Text(c, msg).FontSize(13).TextColor(a.pal.muted).Padding(40, 0).AlignSelf(ui.Center)
+	p := a.pal
+	ui.Column(c).Padding(44, 0).AlignSelf(ui.Center).AlignItems(ui.Center).Gap(12).Children(func() {
+		ui.Box(c).Size(50, 50).Radius(25).Background(p.hover).Center().Children(func() {
+			ui.Icon(c, iconNote).Size(18, 18).TextColor(p.faint)
+		})
+		ui.Text(c, msg).FontSize(13).TextColor(p.muted)
+	})
 }
 
 // artistPhotoSize is the width of an artist's round photo on their page.
