@@ -332,6 +332,15 @@ func (a *app) wallTile(c *ui.Context, tr *netease.Track, i int, x float32, playi
 	tile := ui.Box(c.Key(i)).Absolute().Left(x).Top(0).Size(wallTile, wallTile).Radius(12).
 		Label(tr.Name).ContextMenu(a.songItems(tr, 0))
 	tile.AnimatePose(ui.Pose{Scale: lift}, ui.Animation{Spring: ui.SpringOptions{Duration: 400 * time.Millisecond, Bounce: 0.2}})
+	// The wall arrives in a wave: each tile rises in a little after the
+	// one before it, the march ending by half a second in.
+	if !c.Preferences().ReduceMotion {
+		tile.Transition(ui.ElementTransition{
+			Animation: &ui.Animation{Spring: ui.SpringOptions{Duration: 450 * time.Millisecond, Bounce: 0.18},
+				Delay: time.Duration(min(i, 28)) * 18 * time.Millisecond},
+			Enter: &ui.Motion{Y: 26, Opacity: 0},
+		})
+	}
 	if !tr.Playable() {
 		tile.Opacity(0.4)
 	}
