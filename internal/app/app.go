@@ -130,6 +130,10 @@ type app struct {
 	npScrub               scrubState
 	backdropCache         backdropCache // the backdrop of Now Playing, as last painted
 	npArt                 *artwork      // the cover whose colors Now Playing shows
+	homeArtURL            string        // the cover whose tint the home's background holds
+	homeTint              ui.Color      // the last tint the home's background took
+	songAccent            ui.Color      // the accent the chrome wears, of the song playing
+	sideBars              barState      // the mini bars on the sidebar's playing card
 	npCoverState          coverState    // the cover of Now Playing, as it is tilted and flicked
 	wallState             wallState     // the wall of the queue's covers, as it is dragged
 	quiet                 quietState    // the quiet parts of the song playing, for its hot comments

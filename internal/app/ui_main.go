@@ -16,6 +16,7 @@ func (a *app) view(c *ui.Context) {
 	t := *c.Theme()
 	a.pal = paletteFor(&t)
 	p := a.pal
+	a.songAccent = a.coverAccent(&p)
 	t.Accent, t.AccentText = p.accent, p.onAccent
 	t.Selection = p.accent.Alpha(0.3)
 	c.SetTheme(&t)
@@ -52,9 +53,15 @@ func (a *app) view(c *ui.Context) {
 				side.Background(p.sidebar)
 			}
 			side.Children(func() { a.sidebar(c) })
+			// The page's ground holds a whisper of the song playing: its
+			// cover's color, much watered down, so the room feels of the
+			// music without shouting of it.
+			bg := a.homeTinted(&p)
 			// Keyed, so that a popover of the sidebar opening or closing
 			// keeps what the page and its bars hold, their edges' fades.
-			ui.Box(c.Key("main")).Grow(1).Background(p.bg).BorderWidth(0, 0, 0, 1).BorderColor(p.hairline).Children(func() {
+			main := ui.Box(c.Key("main")).Grow(1).BorderWidth(0, 0, 0, 1).BorderColor(p.hairline)
+			main.Background(main.AnimateColor("bg", bg, ui.Animation{Duration: 900 * time.Millisecond}))
+			main.Children(func() {
 				a.content(c)
 				// The bars float over the page, which scrolls under them:
 				// positioned, they paint over it.
@@ -207,18 +214,38 @@ func (a *app) navItem(c *ui.Context, icon *ui.SVG, label string, r route) {
 	bg := ui.Transparent
 	switch {
 	case selected:
-		bg = p.press
+		bg = a.songAccent.Alpha(0.10)
 	case b.Hovered():
 		bg = p.hover
 	}
-	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond}))
+	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 160 * time.Millisecond}))
+	if selected {
+		// The pill carries a thin ink line at its edge.
+		b.Border(1, ui.RGB(28, 28, 30))
+	}
 	color := p.text
 	if selected {
-		color = p.accent
+		color = a.songAccent
 	}
 	b.Children(func() {
 		ui.Icon(c, icon).Size(17, 17).TextColor(color)
-		ui.Text(c, label).FontSize(13.5).FontWeight(500).TextColor(p.text)
+		textColor := p.text
+		if selected {
+			// The label stays ink, as a pill's label does.
+			textColor = p.text
+		}
+		ui.Text(c, label).FontSize(13.5).FontWeight(500).TextColor(textColor)
+		if selected {
+			// A bar of the accent at the item's left edge, sliding in
+			// from further left as it arrives.
+			bar := ui.Box(c.Key("ind")).Absolute().Left(-10).Top(6).Size(3, 22).Radius(1.5).Background(a.songAccent)
+			if !c.Preferences().ReduceMotion {
+				bar.Transition(ui.ElementTransition{
+					Animation: &ui.Animation{Spring: ui.SpringOptions{Duration: 350 * time.Millisecond, Bounce: 0.25}},
+					Enter:     &ui.Motion{X: -10, Opacity: 0},
+				})
+			}
+		}
 	})
 	if b.Clicked() {
 		a.open(r)
@@ -228,16 +255,26 @@ func (a *app) navItem(c *ui.Context, icon *ui.SVG, label string, r route) {
 func (a *app) sidebarNowPlaying(c *ui.Context, tr *netease.Track) {
 	p := a.pal
 	card := ui.ButtonBase(c.Key("np-card")).Gap(10).Padding(8).Radius(12).AlignItems(ui.Center).FocusRing(false).Label("正在播放")
-	bg := p.hover
+	bg := a.songAccent.Alpha(0.06)
 	if card.Hovered() {
-		bg = p.press
+		bg = a.songAccent.Alpha(0.11)
 	}
-	card.Background(card.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond}))
+	card.Background(card.AnimateColor("bg", bg, ui.Animation{Duration: 160 * time.Millisecond}))
 	card.Children(func() {
 		a.cover(c, tr.Album.PicURL, 96, 40, 6).Shadow(0, 2, 6, 0, p.cardShade)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Text(c, tr.Name).FontSize(12.5).FontWeight(600).SingleLine()
 			a.artistLinks(c, tr, p.muted, p.text).FontSize(11.5).SingleLine()
+		})
+		// Three slim bars at the foot of the card, dancing while the
+		// music does, still when it does not.
+		ui.Box(c.Key("bars")).Size(17, 16).Draw(func(dr *ui.Painter, r ui.Rect) {
+			lv, live := a.pl.Levels()
+			a.sideBars.step(dr.Now(), lv, live)
+			drawBars(dr, r, &a.sideBars, 3, ui.RGB(28, 28, 30), 2)
+			if live {
+				dr.AnimationFrameRate(20)
+			}
 		})
 	})
 	if card.Clicked() {
@@ -473,4 +510,42 @@ func firstPlayable(tracks []netease.Track) int {
 		}
 	}
 	return 0
+}
+
+// homeTinted is the ground of the home's pages: the theme's background
+// holding a little of the playing cover's color, dulled toward gray, so
+// the room feels of the music without shouting of it. The last color
+// stays while a cover loads, and when nothing plays the ground is plain.
+func (a *app) homeTinted(p *palette) ui.Color {
+	tr := a.pl.Current()
+	if tr == nil || tr.Album.PicURL == "" {
+		return p.bg
+	}
+	if art := a.art.get(netease.Sized(tr.Album.PicURL, 64), true); art != nil && !art.failed {
+		a.homeArtURL, a.homeTint = tr.Album.PicURL, art.tint
+	}
+	if a.homeArtURL != tr.Album.PicURL {
+		return p.bg // no tint of this cover yet: plain until it arrives
+	}
+	// Water the color down toward gray, then into the ground, plainly
+	// there to see.
+	soft := a.homeTint.Mix(ui.RGB(128, 128, 132), 0.25)
+	return p.bg.Mix(soft, 0.18)
+}
+
+// coverAccent is the accent of the moment: the playing cover's color,
+// whitened for tints and text; the theme's accent when nothing plays or
+// the cover has yet to arrive.
+func (a *app) coverAccent(p *palette) ui.Color {
+	tr := a.pl.Current()
+	if tr == nil || tr.Album.PicURL == "" {
+		return p.accent
+	}
+	if art := a.art.get(netease.Sized(tr.Album.PicURL, 64), true); art != nil && !art.failed {
+		a.homeArtURL, a.homeTint = tr.Album.PicURL, art.tint
+	}
+	if a.homeArtURL == tr.Album.PicURL {
+		return a.homeTint.Mix(white, 0.45)
+	}
+	return p.accent
 }
