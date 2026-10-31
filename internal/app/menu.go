@@ -71,6 +71,8 @@ func (a *app) setMenu() {
 			})},
 		}},
 		{Label: "窗口", Submenu: []*mygo.MenuItem{
+			{Label: "迷你播放器", Accelerator: "CmdOrCtrl+Shift+M", Click: run(a.toggleMini)},
+			mygo.Separator(),
 			{Role: mygo.RoleMinimize, Label: "最小化"},
 			{Role: mygo.RoleZoom, Label: "缩放"},
 			{Role: mygo.RoleClose, Label: "关闭"},

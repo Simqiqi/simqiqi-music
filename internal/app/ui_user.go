@@ -217,7 +217,7 @@ func (a *app) userPage(c *ui.Context) {
 		// photo's own color, from the photo out to the right.
 		head := ui.Row(c.Key("user-head")).Gap(28).AlignItems(ui.End)
 		if onGlass {
-			head.Padding(20, 22).Radius(28).Clip().Material(glass.Glass{Clarity: 0.4})
+			head.Padding(20, 22).Radius(28).Clip().Material(glass.Glass{Clarity: a.glassClarity(0.4)})
 			head.Draw(a.userWash(tint, 28))
 		}
 		head.Children(func() {

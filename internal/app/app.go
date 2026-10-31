@@ -41,6 +41,7 @@ type route struct {
 type app struct {
 	win   *mygo.Window
 	notch *notch
+	mini  miniPlayer // the card that stands in the window's place
 	tray  *mygo.Tray // the icon in the menu bar or notification area, while it shows
 	art   *artCache
 	pl    *player.Player
@@ -54,12 +55,13 @@ type app struct {
 	mine, saved  []netease.Playlist // the listener's playlists: made, and saved
 	recPlaylists []netease.Playlist // the day's playlists picked for the listener
 	login        loginState
-	accountOpen  bool           // the dropdown of the account row shows
-	naming       nameDialog     // the name of a playlist asked for
-	deleting     deleteDialog   // whether to delete a playlist, asked
-	liked        map[int64]bool // the songs the listener likes
-	toast        string         // a message to show once
-	picked       pickedUp       // the song a login picked up, waiting to play
+	accountOpen  bool               // the dropdown of the account row shows
+	naming       nameDialog         // the name of a playlist asked for
+	deleting     deleteDialog       // whether to delete a playlist, asked
+	liked        map[int64]bool     // the songs the listener likes
+	toast        string             // a message to show once
+	saveImage    func([]byte) error // where a lyric card goes: the clipboard, unless a test says
+	picked       pickedUp           // the song a login picked up, waiting to play
 
 	// The episodes the listener likes, and doesn't, as far as NetEase has
 	// answered, and those asked about: see ui_like.go.
@@ -169,6 +171,9 @@ func (a *app) redraw() {
 	if a.win != nil {
 		a.win.Invalidate()
 	}
+	if a.mini.win != nil {
+		a.mini.win.Invalidate()
+	}
 	if a.notch != nil && a.notch.win != nil {
 		a.notch.win.Invalidate()
 	}
@@ -179,6 +184,10 @@ var shotHook func(a *app)
 
 func (a *app) showMain() {
 	if a.win != nil {
+		// The mini player stands in for the window: it goes as it comes.
+		if a.mini.win != nil && a.mini.win.IsVisible() {
+			a.mini.win.Hide()
+		}
 		if a.win.IsMinimized() {
 			a.win.Restore()
 		}

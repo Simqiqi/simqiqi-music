@@ -61,10 +61,18 @@ type settings struct {
 	// Glass over the page, what scrolls under them frosted and bent, as
 	// macOS 26 draws it. The default is on, so nil means yes.
 	Glass *bool `json:"glass,omitempty"`
+	// GlassClarity is how clear the panes of glass are, from
+	// clarityLeast, a fog, to clarityMost, hardly there. It holds no
+	// answer until the listener sets it: each pane keeps its own until
+	// then.
+	GlassClarity *float64 `json:"glassClarity,omitempty"`
 	// Vinyl turns Now Playing's cover into a record on a platter, its
 	// label the cover itself, spinning while the music plays and freezing,
 	// mid-spin, when it stops: the listener turns it on.
 	Vinyl bool `json:"vinyl,omitempty"`
+	// Accent is the color the app lights with, by its id in accents: empty
+	// for the red it has always been.
+	Accent string `json:"accent,omitempty"`
 	// AppIcon is where the app's icon shows on macOS (appIcons); elsewhere
 	// it is always in the notification area.
 	AppIcon string `json:"appIcon"`
@@ -94,6 +102,73 @@ func (s settings) transitions() bool {
 // says otherwise.
 func (s settings) glassOn() bool {
 	return s.Glass == nil || *s.Glass
+}
+
+// Where the clarity slider ends: below, the glass is a fog, and above,
+// hardly there at all.
+const (
+	clarityLeast = 0.15
+	clarityMost  = 0.95
+)
+
+// clarity is how clear the listener set the glass, or the middle of the
+// range, as macOS draws it, until they do.
+func (s settings) clarity() float64 {
+	if s.GlassClarity == nil {
+		return 0.5
+	}
+	return min(clarityMost, max(clarityLeast, *s.GlassClarity))
+}
+
+// glassClarity is how clear a pane of glass is: what the listener set, or
+// base, the pane's own, until they do.
+func (a *app) glassClarity(base float32) float32 {
+	if a.settings.GlassClarity == nil {
+		return base
+	}
+	return float32(a.settings.clarity())
+}
+
+// accentChoice is a color the app may light with: its id in the settings,
+// what the settings call it, and its hue, which the palette turns into the
+// red of a progress bar or the ring of a heart.
+type accentChoice struct {
+	id, label string
+	hue       float32
+}
+
+// accents are the colors the app may light with, the first its own red:
+// the settings show them in this order.
+var accents = []accentChoice{
+	{"red", "红", 24},
+	{"orange", "橙", 54},
+	{"yellow", "黄", 88},
+	{"green", "绿", 148},
+	{"teal", "青", 196},
+	{"blue", "蓝", 252},
+	{"purple", "紫", 300},
+	{"pink", "粉", 338},
+}
+
+// accentHue returns the hue of an accent by its id: the red's until the
+// listener picks another.
+func accentHue(id string) float32 {
+	for _, ac := range accents {
+		if ac.id == id {
+			return ac.hue
+		}
+	}
+	return accents[0].hue
+}
+
+// accentLabel returns what the settings call an accent by its id.
+func accentLabel(id string) string {
+	for _, ac := range accents {
+		if ac.id == id {
+			return ac.label
+		}
+	}
+	return accents[0].label
 }
 
 func settingsPath() (string, error) {
@@ -170,15 +245,19 @@ func (s settings) save() error {
 	return os.WriteFile(path, b, 0o600)
 }
 
+// setThemeSource applies an appearance to the app's windows: a seam for
+// tests, where no app runs to apply it to.
+var setThemeSource = func(src mygo.ThemeSource) { mygo.Theme.SetSource(src) }
+
 // applyAppearance makes the windows light, dark, or follow the system.
 func (s settings) applyAppearance() {
 	switch s.Appearance {
 	case "light":
-		mygo.Theme.SetSource(mygo.ThemeLight)
+		setThemeSource(mygo.ThemeLight)
 	case "dark":
-		mygo.Theme.SetSource(mygo.ThemeDark)
+		setThemeSource(mygo.ThemeDark)
 	default:
-		mygo.Theme.SetSource(mygo.ThemeSystem)
+		setThemeSource(mygo.ThemeSystem)
 	}
 }
 

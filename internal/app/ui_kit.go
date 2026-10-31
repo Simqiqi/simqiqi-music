@@ -26,7 +26,10 @@ type palette struct {
 	cardShade ui.Color
 }
 
-func paletteFor(t *ui.Theme) palette {
+// paletteFor returns the colors of the app for an appearance, lit with
+// the accent the listener chose: red, until they choose another.
+func paletteFor(t *ui.Theme, accent string) palette {
+	hue := accentHue(accent)
 	if t.Dark {
 		return palette{
 			dark:      true,
@@ -38,7 +41,7 @@ func paletteFor(t *ui.Theme) palette {
 			hairline:  ui.RGBA(255, 255, 255, 0.07),
 			hover:     ui.RGBA(255, 255, 255, 0.06),
 			press:     ui.RGBA(255, 255, 255, 0.1),
-			accent:    ui.Oklch(0.66, 0.2, 22),
+			accent:    ui.Oklch(0.68, 0.19, hue),
 			onAccent:  ui.Hex("#ffffff"),
 			cardShade: ui.RGBA(0, 0, 0, 0.45),
 		}
@@ -52,7 +55,7 @@ func paletteFor(t *ui.Theme) palette {
 		hairline:  ui.RGBA(0, 0, 0, 0.07),
 		hover:     ui.RGBA(0, 0, 0, 0.04),
 		press:     ui.RGBA(0, 0, 0, 0.08),
-		accent:    ui.Oklch(0.6, 0.21, 24),
+		accent:    ui.Oklch(0.61, 0.2, hue),
 		onAccent:  ui.Hex("#ffffff"),
 		cardShade: ui.RGBA(0, 0, 0, 0.16),
 	}
@@ -176,6 +179,67 @@ func fieldSelect(c *ui.Context, chosen *string, options []string, p palette) ui.
 		}
 	})
 	return sel.Trigger
+}
+
+// claritySlider is a slider of a settings row, as the app draws one: a
+// thin track, filled with the accent up to a round knob riding on it.
+func claritySlider(c *ui.Context, key string, value *float64, lo, hi float64, p palette) ui.Element {
+	const knob, track = 18, 4
+	s := ui.SliderBase(c.Key(key), value, lo, hi).Size(150, knob+8).PaddingX(knob / 2).
+		Step(0.01).FocusRing(false).Label("玻璃清晰度")
+	pressed := s.Pressed()
+	v := float32(0)
+	if hi > lo {
+		v = float32((*value - lo) / (hi - lo))
+	}
+	s.Draw(func(pt *ui.Painter, r ui.Rect) {
+		left, right := r.X+knob/2, r.X+r.W-knob/2
+		y := r.Y + (r.H-track)/2
+		x := left + (right-left)*v
+		pt.Fill(ui.Rect{X: left, Y: y, W: right - left, H: track}, p.press, track/2)
+		pt.Fill(ui.Rect{X: left, Y: y, W: max(track, x-left), H: track}, p.accent, track/2)
+		k := ui.Rect{X: x - knob/2, Y: r.Y + (r.H-knob)/2, W: knob, H: knob}
+		pt.Shadow(k, knob/2, 0, 0.5, 1.5, 0, ui.RGBA(0, 0, 0, 0.3))
+		pt.Shadow(k, knob/2, 0, 1, 4, 0, ui.RGBA(0, 0, 0, 0.12))
+		fill := ui.RGB(255, 255, 255)
+		if pressed {
+			fill = fill.Mix(ui.RGB(0, 0, 0), 0.06)
+		}
+		pt.Fill(k, fill, knob/2)
+		pt.Stroke(k, ui.RGBA(0, 0, 0, 0.08), knob/2, 0.5)
+	})
+	return s
+}
+
+// accentSwatches is the settings' row of accents: a disc of each color in
+// the palette, the one in use carrying a check. It returns the accent
+// clicked, and whether one was.
+func accentSwatches(c *ui.Context, key, current string, p palette) (string, bool) {
+	picked, clicked := "", false
+	ui.Row(c).Gap(7).AlignItems(ui.Center).Children(func() {
+		for _, ac := range accents {
+			ac := ac
+			on := ac.id == current || (current == "" && ac.id == accents[0].id)
+			b := ui.ButtonBase(c.Key(key+"-"+ac.id)).Size(22, 22).Center().Radius(999).
+				Background(ui.Oklch(0.68, 0.19, ac.hue)).Label("强调色"+ac.label).FocusRing(false).
+				Border(1, ui.RGBA(0, 0, 0, 0.12))
+			scale := float32(1)
+			if b.Hovered() {
+				scale = 1.12
+			}
+			b.AnimatePose(ui.Pose{Scale: scale}, ui.Snappy)
+			b.Children(func() {
+				if on {
+					// A check in white, the disc's own shade for a ground.
+					ui.Icon(c, iconCheck).Size(11, 11).TextColor(ui.RGBA(255, 255, 255, 0.95))
+				}
+			})
+			if b.Clicked() && !on {
+				picked, clicked = ac.id, true
+			}
+		}
+	})
+	return picked, clicked
 }
 
 // rowButton is the small button of a settings row: a quiet pill that

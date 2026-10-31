@@ -55,7 +55,7 @@ func (a *app) settingsSheet(c *ui.Context) {
 		panel.Width(520).HeightPercent(86).MaxHeight(760).Radius(22).Gap(0).Clip().
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.96, Y: 10}, Exit: &ui.Motion{Scale: 0.98, Opacity: 0}})
 		if liquid {
-			panel.Material(glass.Glass{Clarity: 0.5}).Shadow(0, 30, 70, -14, ui.RGBA(0, 0, 0, 0.28))
+			panel.Material(glass.Glass{Clarity: a.glassClarity(0.5)}).Shadow(0, 30, 70, -14, ui.RGBA(0, 0, 0, 0.28))
 		} else {
 			panel.Background(p.bg).Border(1, p.hairline).Shadow(0, 34, 80, -18, ui.RGBA(0, 0, 0, 0.5))
 		}
@@ -76,7 +76,7 @@ func (a *app) settingsSheet(c *ui.Context) {
 // settingsTestView renders the settings body for a test, as the card
 // shows it.
 func (a *app) settingsTestView(c *ui.Context) {
-	a.settingsBody(c, paletteFor(c.Theme()), false)
+	a.settingsBody(c, paletteFor(c.Theme(), a.settings.Accent), false)
 }
 
 // settingsBody draws the settings themselves: groups of rows, in the order
@@ -226,6 +226,21 @@ func (a *app) settingsBody(c *ui.Context, p palette, liquid bool) {
 			on := s.glassOn()
 			if ui.Switch(c.Key("glass"), &on).Label("液态玻璃").Changed() {
 				s.Glass = &on
+				a.changed()
+			}
+		})
+		if s.glassOn() {
+			row("玻璃清晰度", "往右：面板更通透，下面的内容看得更清楚；往左：更磨砂，更安静", func() {
+				v := s.clarity()
+				if claritySlider(c, "glass-clarity", &v, clarityLeast, clarityMost, p).Changed() {
+					s.GlassClarity = &v
+					a.changed()
+				}
+			})
+		}
+		row("强调色", "进度条、喜欢的心、选中的项都染上这一种颜色", func() {
+			if id, ok := accentSwatches(c, "accent", s.Accent, p); ok {
+				s.Accent = id
 				a.changed()
 			}
 		})

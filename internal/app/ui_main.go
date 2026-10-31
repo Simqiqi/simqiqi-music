@@ -25,7 +25,7 @@ const (
 
 func (a *app) view(c *ui.Context) {
 	t := *c.Theme()
-	a.pal = paletteFor(&t)
+	a.pal = paletteFor(&t, a.settings.Accent)
 	p := a.pal
 	a.songAccent = a.coverAccent(&p)
 	t.Accent, t.AccentText = p.accent, p.onAccent
@@ -78,7 +78,7 @@ func (a *app) view(c *ui.Context) {
 			side.Children(func() {
 				pill := ui.Column(c).Fill()
 				if liquid {
-					pill.Radius(sidebarRadius).Material(glass.Glass{Clarity: 0.5})
+					pill.Radius(sidebarRadius).Material(glass.Glass{Clarity: a.glassClarity(0.5)})
 				}
 				pill.Children(func() { a.sidebar(c) })
 			})
@@ -235,7 +235,9 @@ func (a *app) sidebar(c *ui.Context) {
 			a.myPlaylists(c, "收藏的歌单", a.saved, false, &a.savedCollapsed)
 		})
 
-		// What plays, as a card at the foot of the sidebar, over who listens.
+		// The words of the moment, then what plays, as a card at the foot
+		// of the sidebar, over who listens.
+		a.lyricPeek(c)
 		if tr := a.pl.Current(); tr != nil {
 			a.sidebarNowPlaying(c, tr)
 		}
@@ -405,24 +407,59 @@ func (a *app) pageTop(c *ui.Context) {
 	// ground.
 	var mat ui.Material = glass.ScrollEdge{Hard: true, Background: a.pal.bg}
 	if a.settings.glassOn() {
-		mat = glass.Glass{Clarity: 0.45}
+		mat = glass.Glass{Clarity: a.glassClarity(0.45)}
 	}
 	edge := ui.Box(c.Key("top-edge")).Absolute().Top(0).Left(0).Right(0).Height(top).DragWindow().Material(mat)
 	edge.Opacity(edgeShown(edge, a.underTop))
 	if len(a.history) > 0 || len(a.forward) > 0 {
 		ui.Row(c).Absolute().Top(0).Left(20).Height(topBar(c)).AlignItems(ui.Center).Children(func() {
-			back := iconButton(c.Key("back"), iconBack, 18, a.pal.muted, "返回").Disabled(len(a.history) == 0)
-			if len(a.history) == 0 {
-				back.Opacity(0.35)
+			// The two buttons share one pane of glass, a capsule that
+			// holds them as a bead holds two: they stay round within it.
+			bar := ui.Row(c).Gap(4).Padding(4).Radius(999).AlignItems(ui.Center)
+			if a.settings.glassOn() {
+				bar.Material(glass.Glass{Clarity: a.glassClarity(0.5)})
 			}
-			if back.Clicked() {
-				a.back()
-			}
-			if len(a.forward) > 0 && iconButton(c.Key("forward"), iconForward, 18, a.pal.muted, "前进").Clicked() {
-				a.goForward()
-			}
+			bar.Children(func() {
+				back := a.navButton(c, "back", iconBack, "返回").Disabled(len(a.history) == 0)
+				if len(a.history) == 0 {
+					back.Opacity(0.35)
+				}
+				if back.Clicked() {
+					a.back()
+				}
+				if len(a.forward) > 0 && a.navButton(c, "forward", iconForward, "前进").Clicked() {
+					a.goForward()
+				}
+			})
 		})
 	}
+}
+
+// navButton is a page's back or forward button: a round bead of its own
+// inside the capsule they share, which lights under the pointer and gives
+// a little as it is pressed. Without the glass, it is the icon alone, with
+// a soft circle under the pointer.
+func (a *app) navButton(c *ui.Context, key string, icon *ui.SVG, label string) ui.Element {
+	b := ui.ButtonBase(c.Key(key)).Size(34, 34).Center().Radius(999).Label(label).TextColor(a.pal.muted)
+	bg := ui.Transparent
+	if a.settings.glassOn() {
+		// A bead on the glass: quieter than the pane, brighter under the
+		// pointer, so that the two read as buttons within it.
+		bg = ui.RGBA(255, 255, 255, 0.13)
+		if b.Hovered() {
+			bg = ui.RGBA(255, 255, 255, 0.26)
+		}
+	} else if b.Hovered() {
+		bg = ui.RGBA(128, 128, 128, 0.14)
+	}
+	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 130 * time.Millisecond}))
+	pose := ui.Pose{}
+	if b.Pressed() {
+		pose.Scale = 0.9
+	}
+	b.AnimatePose(pose, ui.Snappy)
+	b.Children(func() { ui.Icon(c, icon).Size(18, 18) })
+	return b
 }
 
 func (a *app) content(c *ui.Context) {

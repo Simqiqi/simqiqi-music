@@ -481,6 +481,8 @@ func (a *app) lyricsPane(c *ui.Context, tr *netease.Track, h float32) {
 	}
 	defer a.quietCard(c, dim, h*0.18)
 	a.timedLines(c, scroll, lines, pos, cur, lag, linesStyle{size: 30, weight: 800, lineHeight: 1.25, quiet: quiet}, nil)
+	// A card of these words, for sharing, over the pane's top right.
+	a.shareLyricsButton(c)
 }
 
 // linesStyle is how timedLines sets its lines: the size, weight and
