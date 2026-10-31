@@ -99,6 +99,9 @@ func (a *app) view(c *ui.Context) {
 		})
 		a.nowPlayingLayer(c, npOpen, npSettled)
 	})
+	// The settings, when open, sit above the page but below a dialog
+	// they may ask for.
+	a.settingsSheet(c)
 	a.loginDialog(c)
 	a.playlistNameDialog(c)
 	a.deletePlaylistDialog(c)

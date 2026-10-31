@@ -148,7 +148,7 @@ func init() {
 				time.Sleep(3 * time.Second)
 				step(0, func() { a.openSettings() })
 				time.Sleep(2 * time.Second)
-				shot("dev-settings", a.settingsWin)
+				shot("dev-settings", a.win)
 				mygo.RunOnMain(mygo.App.Quit)
 				return
 			}
