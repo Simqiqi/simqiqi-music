@@ -202,6 +202,11 @@ func (a *app) settingsView(c *ui.Context) {
 		})
 
 		group("实验性功能", func() {
+			row("黑胶唱片", "播放页的封面化作缓缓旋转的黑胶唱片，暂停时停在原地；再点封面上的唱片按钮也可开关", func() {
+				if ui.Switch(c.Key("vinyl"), &s.Vinyl).Label("黑胶唱片").Changed() {
+					a.changed()
+				}
+			})
 			row("进度条烟雾特效", "播放时进度条化作拖着烟雾的光点，随音乐起伏；会多用一些电量", func() {
 				if ui.Switch(c.Key("smoke"), &s.Smoke).Label("进度条烟雾特效").Changed() {
 					a.changed()

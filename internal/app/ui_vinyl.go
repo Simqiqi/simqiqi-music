@@ -47,14 +47,15 @@ func (a *app) vinylDisc(c *ui.Context, art *artwork, size float32) {
 			}
 			disc.Children(func() {
 				// Grooves: faint rings from the rim in to the label.
-				for i, k := range []float32{0.475, 0.45, 0.425, 0.40, 0.375, 0.35, 0.325, 0.30, 0.275, 0.25, 0.225, 0.20} {
+				for i, k := range []float32{0.475, 0.45, 0.425, 0.40, 0.375, 0.35, 0.325, 0.30, 0.275} {
 					gd := d * k * 2
 					ui.Box(c.Key(i)).Size(gd, gd).Radius(gd/2).Border(1, white.Alpha(0.045)).
 						Absolute().Top((d - gd) / 2).Left((d - gd) / 2)
 				}
 				// The label: the cover itself, clipped round, as a record's
-				// label is printed on.
-				ld := d * 0.36
+				// label is printed on — wider than a label truly runs, so
+				// that the art shows.
+				ld := d * 0.52
 				label := ui.Box(c.Key("label")).Size(ld, ld).Radius(ld / 2).Background(white.Alpha(0.08)).
 					Absolute().Top((d - ld) / 2).Left((d - ld) / 2)
 				bmp := bitmap(art)
