@@ -186,6 +186,13 @@ func (a *app) settingsView(c *ui.Context) {
 		})
 
 		group("外观", func() {
+			row("液态玻璃", "侧边栏与播放条化作悬浮的玻璃面板，内容从它们下面经过时被轻轻磨砂、折射，如 macOS 26 的质感", func() {
+				on := s.glassOn()
+				if ui.Switch(c.Key("glass"), &on).Label("液态玻璃").Changed() {
+					s.Glass = &on
+					a.changed()
+				}
+			})
 			row("外观", "", func() {
 				modes := []string{"system", "light", "dark"}
 				i := 0
@@ -202,6 +209,13 @@ func (a *app) settingsView(c *ui.Context) {
 		})
 
 		group("实验性功能", func() {
+			row("智能过渡", "一首歌播完前缓缓淡出、下一首缓缓淡入；切换页面时新页面也从下方轻轻浮现。关掉则样样干净利落", func() {
+				on := s.transitions()
+				if ui.Switch(c.Key("transition"), &on).Label("智能过渡").Changed() {
+					s.Transition = &on
+					a.changed()
+				}
+			})
 			row("黑胶唱片", "播放页的封面化作缓缓旋转的黑胶唱片，暂停时停在原地；再点封面上的唱片按钮也可开关", func() {
 				if ui.Switch(c.Key("vinyl"), &s.Vinyl).Label("黑胶唱片").Changed() {
 					a.changed()

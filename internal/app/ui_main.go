@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -10,7 +11,17 @@ import (
 	"netease-music-mygo/internal/netease"
 )
 
+// sidebarWidth is how wide the sidebar's column is, the gap that holds
+// its pane of glass and the room around it.
 const sidebarWidth = 232
+
+// sidebarInset is the room the sidebar's pane of glass keeps from the
+// window's edges, floating it over the page, and sidebarRadius its
+// corners, as macOS 26's floating sidebars round them.
+const (
+	sidebarInset  = 8
+	sidebarRadius = 22
+)
 
 func (a *app) view(c *ui.Context) {
 	t := *c.Theme()
@@ -48,19 +59,36 @@ func (a *app) view(c *ui.Context) {
 				// trackList), so it shows again as it was.
 				return
 			}
+			// Liquid Glass: the page's ground fills the whole window, and
+			// the sidebar floats on it as a pane of glass, a step above
+			// the page, so the color of what plays has something to bend
+			// and frost.
+			bg := a.homeTinted(&p)
+			liquid := a.settings.glassOn()
+			if liquid {
+				page.Background(page.AnimateColor("bg", bg, ui.Animation{Duration: 900 * time.Millisecond}))
+			}
 			side := ui.Column(c).Width(sidebarWidth)
-			if !c.Vibrancy() {
+			switch {
+			case liquid:
+				side.Padding(sidebarInset, sidebarInset, sidebarInset, sidebarInset)
+			case !c.Vibrancy():
 				side.Background(p.sidebar)
 			}
-			side.Children(func() { a.sidebar(c) })
-			// The page's ground holds a whisper of the song playing: its
-			// cover's color, much watered down, so the room feels of the
-			// music without shouting of it.
-			bg := a.homeTinted(&p)
+			side.Children(func() {
+				pill := ui.Column(c).Fill()
+				if liquid {
+					pill.Radius(sidebarRadius).Material(glass.Glass{Clarity: 0.5})
+				}
+				pill.Children(func() { a.sidebar(c) })
+			})
 			// Keyed, so that a popover of the sidebar opening or closing
 			// keeps what the page and its bars hold, their edges' fades.
-			main := ui.Box(c.Key("main")).Grow(1).BorderWidth(0, 0, 0, 1).BorderColor(p.hairline)
-			main.Background(main.AnimateColor("bg", bg, ui.Animation{Duration: 900 * time.Millisecond}))
+			main := ui.Box(c.Key("main")).Grow(1)
+			if !liquid {
+				main.BorderWidth(0, 0, 0, 1).BorderColor(p.hairline)
+				main.Background(main.AnimateColor("bg", bg, ui.Animation{Duration: 900 * time.Millisecond}))
+			}
 			main.Children(func() {
 				a.content(c)
 				// The bars float over the page, which scrolls under them:
@@ -181,6 +209,11 @@ func (a *app) sidebar(c *ui.Context) {
 	if c.TitleBar().Left > 0 {
 		top = topBar(c) + 4
 	}
+	if a.settings.glassOn() {
+		// The pane floats, inset from the top: what it leaves is the room
+		// its own inset gives back.
+		top -= sidebarInset
+	}
 	// Where nothing in it takes the press, the sidebar moves the window, as
 	// the title bar it reaches up into would.
 	ui.Column(c).Fill().Padding(top, 14, 14, 14).Gap(4).DragWindow().Children(func() {
@@ -285,6 +318,11 @@ func (a *app) sidebarNowPlaying(c *ui.Context, tr *netease.Track) {
 // playerBarHeight is the height of the player along the foot of the pages.
 const playerBarHeight = 84
 
+// glassBarHeight is the height of the player as a pane of Liquid Glass
+// floating above the foot of the pages: with its margin of 8 below and
+// 8 of air above, it takes the same room as the bar.
+const glassBarHeight = 68
+
 // pageGap is the room between the bar over a page and its content.
 const pageGap = 12
 
@@ -385,6 +423,22 @@ func (a *app) content(c *ui.Context) {
 	}
 	// Pages mark where their content is, as they scroll.
 	a.underTop, a.underBottom = false, false
+	// Keyed by where it shows, a page is a new one as the listener goes
+	// elsewhere, and comes in faint, from a little below, rather than
+	// appearing whole.
+	key := fmt.Sprintf("page-%d-%d-%s-%d", a.route.page, a.route.id, a.route.query, a.route.kind)
+	page := ui.Box(c.Key(key)).Grow(1)
+	if !c.Preferences().ReduceMotion && a.settings.transitions() {
+		page.Transition(ui.ElementTransition{
+			Duration: 220 * time.Millisecond,
+			Enter:    &ui.Motion{Y: 10, Opacity: 0},
+		})
+	}
+	page.Children(func() { a.pageOf(c) })
+}
+
+// pageOf shows the page the route names.
+func (a *app) pageOf(c *ui.Context) {
 	switch a.route.page {
 	case pageHome:
 		a.homePage(c)

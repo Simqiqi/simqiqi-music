@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/lyrics"
@@ -183,37 +184,46 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 						}
 					})
 
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(16, 0, 14, 0).Children(func() {
-					ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
-						if r := pl.Radio(); r != "" {
-							a.radioChip(c, r)
-						}
-						ui.Text(c, tr.Name).FontSize(22).FontWeight(700).LetterSpacing(-0.3).SingleLine()
-						a.artistLinks(c, tr, white.Alpha(0.6), white, true).FontSize(15).SingleLine()
+				// Liquid Glass: what plays, its progress and its controls
+				// sit on a pane of it, a step above the backdrop, as the
+				// sidebar floats over the pages.
+				info := ui.Column(c).Gap(0)
+				if a.settings.glassOn() {
+					info.Padding(12, 14, 8, 14).Radius(22).Material(glass.Glass{Clarity: 0.4})
+				}
+				info.Children(func() {
+					ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(16, 0, 14, 0).Children(func() {
+						ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
+							if r := pl.Radio(); r != "" {
+								a.radioChip(c, r)
+							}
+							ui.Text(c, tr.Name).FontSize(22).FontWeight(700).LetterSpacing(-0.3).SingleLine()
+							a.artistLinks(c, tr, white.Alpha(0.6), white, true).FontSize(15).SingleLine()
+						})
+						a.vinylButton(c.Key("vinyl"), accent)
+						a.likeButton(c.Key("like"), tr, 22, white.Alpha(0.7))
+						a.songMenu(c.Key("more"), tr, 22, white.Alpha(0.7)).Margin(0, -8, 0, 0)
 					})
-					a.vinylButton(c.Key("vinyl"), accent)
-					a.likeButton(c.Key("like"), tr, 22, white.Alpha(0.7))
-					a.songMenu(c.Key("more"), tr, 22, white.Alpha(0.7)).Margin(0, -8, 0, 0)
-				})
-				a.scrubber(c.Key("np-scrub"), &a.npScrub, white.Alpha(0.18), white.Alpha(0.9), 16, accent.Mix(white, 0.35))
-				// As tall with the quality's badge as without it: the badge goes
-				// while the next song loads, and the column would move with it.
-				ui.Row(c).Height(16).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, clock(pl.Position())).FontSize(11).FontFeatures("tnum").TextColor(white.Alpha(0.5))
-					ui.Spacer(c)
-					qualityBadge(c, pl.Stream())
-					ui.Spacer(c)
-					status := "-" + clock(pl.Duration()-pl.Position())
-					if pl.Loading() {
-						status = "正在缓冲…"
-					}
-					ui.Text(c, status).FontSize(11).FontFeatures("tnum").TextColor(white.Alpha(0.5))
-				})
-				ui.Box(c).Margin(14, 0, 18, 0).Children(func() {
-					a.transport(c, white, white.Alpha(0.45), accent, 28)
-				})
-				ui.Row(c).Justify(ui.Center).Children(func() {
-					a.volumeSlider(c, white.Alpha(0.7), white.Alpha(0.18), 180)
+					a.scrubber(c.Key("np-scrub"), &a.npScrub, white.Alpha(0.18), white.Alpha(0.9), 16, accent.Mix(white, 0.35))
+					// As tall with the quality's badge as without it: the badge goes
+					// while the next song loads, and the column would move with it.
+					ui.Row(c).Height(16).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, clock(pl.Position())).FontSize(11).FontFeatures("tnum").TextColor(white.Alpha(0.5))
+						ui.Spacer(c)
+						qualityBadge(c, pl.Stream())
+						ui.Spacer(c)
+						status := "-" + clock(pl.Duration()-pl.Position())
+						if pl.Loading() {
+							status = "正在缓冲…"
+						}
+						ui.Text(c, status).FontSize(11).FontFeatures("tnum").TextColor(white.Alpha(0.5))
+					})
+					ui.Box(c).Margin(14, 0, 18, 0).Children(func() {
+						a.transport(c, white, white.Alpha(0.45), accent, 28)
+					})
+					ui.Row(c).Justify(ui.Center).Children(func() {
+						a.volumeSlider(c, white.Alpha(0.7), white.Alpha(0.18), 180)
+					})
 				})
 			})
 

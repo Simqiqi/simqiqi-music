@@ -30,6 +30,9 @@ type Player struct {
 	// Normalize reports whether to even out the loudness of tracks, as
 	// the settings say.
 	Normalize func() bool
+	// Transition reports whether to fade a song out as it ends and the
+	// next one in as it begins, as the settings say.
+	Transition func() bool
 	// Cache keeps the songs played, if set.
 	Cache *Cache
 	// Changed, if set, hears that what plays, where it is or whether it
@@ -67,6 +70,13 @@ type Player struct {
 
 	// pending holds a seek asked for while the track loads.
 	pending time.Duration
+	// tailGen counts the arms of the fade out at the track's end, so that
+	// a stale one, of a track left behind, does nothing.
+	tailGen int
+	// natural says the track ended by itself, rather than the listener
+	// leaving it: the next one comes in more slowly after.
+	natural bool
+
 	// A seek playing fades out, then lands, then fades in: meanwhile the
 	// position is where it goes.
 	seeking bool
@@ -133,6 +143,7 @@ func (p *Player) announce(t *netease.Track, artwork []byte) {
 }
 
 func (p *Player) ended() {
+	p.natural = true
 	if p.repeat == RepeatOne {
 		p.out.Seek(0)
 		p.out.Play()
@@ -454,6 +465,7 @@ func (p *Player) TogglePlay() {
 		out.Play()
 	}
 	p.fade.fade(1, fadeIn, nil)
+	p.armTail(p.gen)
 	p.sync()
 }
 
@@ -475,6 +487,7 @@ func (p *Player) Seek(t time.Duration) {
 	// the jump, and this one takes its place, playing on from there.
 	if !out.Playing() && !p.seeking {
 		out.Seek(t)
+		p.rearm()
 		p.sync()
 		return
 	}
@@ -492,6 +505,7 @@ func (p *Player) Seek(t time.Duration) {
 			if p.playing || !p.fade.silent() {
 				out.Play()
 			}
+			p.rearm()
 			p.sync()
 		})
 	})
@@ -654,10 +668,17 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration) {
 			p.gain = normGain(info)
 			p.out = audio.NewPlayer(s)
 			// From its middle, as a session picked up again, it fades in.
+			// A natural end hands over more slowly than a skip does,
+			// coming up from silence either way when transitions are on.
+			among := fadeIn
+			if p.natural {
+				among = fadeInNatural
+			}
 			level := 1.0
-			if p.pending > 0 {
+			if p.pending > 0 || p.transitions() && p.playing {
 				level = 0
 			}
+			p.natural = false
 			p.fade.attach(p.out, level)
 			p.applyGain()
 			p.out.OnEnd(func() {
@@ -673,7 +694,8 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration) {
 			}
 			if p.playing {
 				p.out.Play()
-				p.fade.fade(1, fadeIn, nil)
+				p.fade.fade(1, among, nil)
+				p.armTail(gen)
 			}
 			p.sync()
 		})

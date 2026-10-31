@@ -52,6 +52,15 @@ type settings struct {
 	// rising and swelling with the bass: an experiment the listener turns
 	// on.
 	Fog bool `json:"fog"`
+	// Transition fades a song out before it ends and the next one in as
+	// it begins, and fades each page in as it takes the place of another.
+	// It holds no answer for the listener who never said: the default is
+	// on, so nil means yes.
+	Transition *bool `json:"transition,omitempty"`
+	// Glass floats the sidebar and the player bar as panes of Liquid
+	// Glass over the page, what scrolls under them frosted and bent, as
+	// macOS 26 draws it. The default is on, so nil means yes.
+	Glass *bool `json:"glass,omitempty"`
 	// Vinyl turns Now Playing's cover into a record on a platter, its
 	// label the cover itself, spinning while the music plays and freezing,
 	// mid-spin, when it stops: the listener turns it on.
@@ -73,6 +82,18 @@ type settings struct {
 
 func defaultSettings() settings {
 	return settings{NotchActivity: true, Quality: "exhigh", Appearance: "system", Volume: 0.8, Normalize: true, AppIcon: "dock-and-menubar", CacheMB: 2048, Captions: true}
+}
+
+// transitions reports whether the smart transitions are on: they are,
+// until the listener says otherwise.
+func (s settings) transitions() bool {
+	return s.Transition == nil || *s.Transition
+}
+
+// glassOn reports whether Liquid Glass is on: it is, until the listener
+// says otherwise.
+func (s settings) glassOn() bool {
+	return s.Glass == nil || *s.Glass
 }
 
 func settingsPath() (string, error) {
