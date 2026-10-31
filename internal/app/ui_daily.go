@@ -71,6 +71,20 @@ func (a *app) dailyCard(c *ui.Context, now time.Time) {
 		card.Jump("sweep", 0)
 	}
 
+	// The card leans a few degrees toward the pointer, seen in
+	// perspective, as a card held to the light: it asks for frames while
+	// the pointer moves over it, and eases back to flat as it leaves.
+	var rx, ry float32
+	if !still {
+		if px, py, over := card.PointerPosition(); over {
+			ry = -((px/inner)*2 - 1) * 4
+			rx = ((py/dailyHeight)*2 - 1) * 3
+		}
+	}
+	rx = card.AnimateTo("rx", rx, ui.Snappy)
+	ry = card.AnimateTo("ry", ry, ui.Snappy)
+	card.Transform(ui.Perspective(1200).Then(ui.RotationX(rx)).Then(ui.RotationY(ry)))
+
 	// The record: tucked in, out a little under the pointer, out while it
 	// plays.
 	out := float32(0)
