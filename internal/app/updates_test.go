@@ -86,23 +86,27 @@ func TestCheckForUpdatesFromSettings(t *testing.T) {
 	}
 }
 
-// The data kept under the app's old name moves to the directory of its
-// name, which Path made empty, but not over data kept there already.
+// The data kept under any of the app's old names moves to the directory of
+// its name, which Path made empty, but not over data kept there already.
 func TestMoveOldData(t *testing.T) {
-	root := t.TempDir()
-	old, dir := filepath.Join(root, oldName), filepath.Join(root, "MyGo 云音乐")
-	os.MkdirAll(old, 0o700)
-	os.WriteFile(filepath.Join(old, "settings.json"), []byte("old"), 0o600)
-	os.MkdirAll(dir, 0o700)
-	moveDir(old, dir)
-	if b, _ := os.ReadFile(filepath.Join(dir, "settings.json")); string(b) != "old" {
-		t.Fatalf("settings %q after moving", b)
-	}
+	for _, name := range oldNames {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			old, dir := filepath.Join(root, name), filepath.Join(root, "Echo云音乐")
+			os.MkdirAll(old, 0o700)
+			os.WriteFile(filepath.Join(old, "settings.json"), []byte("old"), 0o600)
+			os.MkdirAll(dir, 0o700)
+			moveDir(old, dir)
+			if b, _ := os.ReadFile(filepath.Join(dir, "settings.json")); string(b) != "old" {
+				t.Fatalf("settings %q after moving", b)
+			}
 
-	os.MkdirAll(old, 0o700)
-	os.WriteFile(filepath.Join(old, "settings.json"), []byte("older"), 0o600)
-	moveDir(old, dir)
-	if b, _ := os.ReadFile(filepath.Join(dir, "settings.json")); string(b) != "old" {
-		t.Fatalf("settings %q, moved over what was there", b)
+			os.MkdirAll(old, 0o700)
+			os.WriteFile(filepath.Join(old, "settings.json"), []byte("older"), 0o600)
+			moveDir(old, dir)
+			if b, _ := os.ReadFile(filepath.Join(dir, "settings.json")); string(b) != "old" {
+				t.Fatalf("settings %q, moved over what was there", b)
+			}
+		})
 	}
 }

@@ -1,4 +1,4 @@
-# simqiqi-music
+# Echo云音乐
 
 第三方网易云音乐桌面客户端，Go 原生界面、无 WebView，基于 [MyGo](https://github.com/egoist/mygo) 框架。
 

@@ -226,21 +226,24 @@ func settingsPath() (string, error) {
 	return filepath.Join(dir, "settings.json"), nil
 }
 
-// oldName is what the app was called before it took its bundle's name, and
-// kept its data under.
-const oldName = "网易云音乐"
+// oldNames are what the app was called before it took its bundle's name,
+// and kept its data under: the fork's first name, and the one before it.
+// The names go newest first, so the data that was written last moves.
+var oldNames = []string{"MyGo 云音乐", "网易云音乐"}
 
-// moveOldData moves the user data and the song cache kept under oldName to
-// the directories of the app's name, unless those hold something already:
-// the login, settings and where playback was left go on. It must run before
-// anything reads them.
+// moveOldData moves the user data and the song cache kept under an old name
+// to the directories of the app's name, unless those hold something
+// already: the login, settings and where playback was left go on. It must
+// run before anything reads them.
 func moveOldData() {
 	for _, name := range []mygo.PathName{mygo.PathUserData, mygo.PathCache} {
 		dir, err := mygo.App.Path(name)
 		if err != nil {
 			continue
 		}
-		moveDir(filepath.Join(filepath.Dir(dir), oldName), dir)
+		for _, old := range oldNames {
+			moveDir(filepath.Join(filepath.Dir(dir), old), dir)
+		}
 	}
 }
 

@@ -202,7 +202,7 @@ func (a *app) shareCard(c *ui.Context, card lyricCard) {
 			})
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(26, 0, 0, 0).Children(func() {
 				ui.Box(c).Size(6, 6).Radius(3).Background(ink.Mix(white, 0.3))
-				ui.Text(c, "MyGo 云音乐").FontSize(11.5).LetterSpacing(0.2).TextColor(white.Alpha(0.45))
+				ui.Text(c, "Echo云音乐").FontSize(11.5).LetterSpacing(0.2).TextColor(white.Alpha(0.45))
 			})
 		})
 	})
