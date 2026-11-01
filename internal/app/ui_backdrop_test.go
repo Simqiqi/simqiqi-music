@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -74,33 +75,46 @@ func TestBackdropPickerPicksOne(t *testing.T) {
 	}
 }
 
-// TestBackdropSwatches paints each of the three small, the way the picker
-// shows them.
+// TestBackdropSwatches paints each of the backdrops small, the way the
+// picker shows them: every one of them is painted, none is flat, and no two
+// look alike.
 func TestBackdropSwatches(t *testing.T) {
-	view := func(c *ui.Context) {
-		ui.Row(c).Gap(6).Children(func() {
-			for _, b := range backdrops {
-				style := b.id
-				ui.Box(c).Size(24, 24).Draw(func(p *ui.Painter, r ui.Rect) {
-					backdropSwatch(p, r, style, ui.RGB(52, 84, 176))
-				})
-			}
-		})
-	}
-	tt := ui.NewTester(view, len(backdrops)*30+12, 40)
-	tt.Frame()
-	img := tt.Image()
-	// Each swatch is drawn, and each differently from the others.
-	seen := map[uint32]bool{}
-	for i := range backdrops {
-		x := i*30 + 12
-		r, g, bl, _ := img.At(x, 20).RGBA()
-		seen[r<<16|g<<8|bl] = true
-		if r == 0 && g == 0 && bl == 0 {
-			t.Errorf("the %s swatch is blank", backdrops[i].label)
+	dir := os.Getenv("NM_SHOTS")
+	seen := map[string]string{}
+	for _, b := range backdrops {
+		img := paintSwatch(b.id, ui.RGB(52, 84, 176))
+		if got := img.Bounds().Dx(); got != swatchPx {
+			t.Errorf("the %s swatch is %d across, want %d", b.label, got, swatchPx)
 		}
-	}
-	if len(seen) != len(backdrops) {
-		t.Errorf("%d swatches look alike, want %d apart", len(backdrops)-len(seen)+1, len(backdrops))
+		if dir != "" {
+			saveFrame(t, dir, "swatch-"+b.id+".png", img)
+		}
+		// Its picture, four by four: flat paper would give one colour per
+		// cell, and a backdrop that shows nothing at all would give one
+		// colour everywhere.
+		var cells []uint32
+		all := map[uint32]bool{}
+		for cy := range 4 {
+			for cx := range 4 {
+				var r, g, bl, n uint32
+				for y := cy * swatchPx / 4; y < (cy+1)*swatchPx/4; y++ {
+					for x := cx * swatchPx / 4; x < (cx+1)*swatchPx/4; x++ {
+						cr, cg, cb, _ := img.At(x, y).RGBA()
+						r, g, bl, n = r+cr>>8, g+cg>>8, bl+cb>>8, n+1
+					}
+				}
+				c := (r/n)<<16 | (g/n)<<8 | bl/n
+				cells = append(cells, c)
+				all[c] = true
+			}
+		}
+		if len(all) < 6 {
+			t.Errorf("the %s swatch is %d colours over sixteen cells: it shows nothing", b.label, len(all))
+		}
+		key := fmt.Sprint(cells)
+		if other, ok := seen[key]; ok {
+			t.Errorf("the %s and %s swatches look alike", b.label, other)
+		}
+		seen[key] = b.label
 	}
 }

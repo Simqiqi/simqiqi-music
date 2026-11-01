@@ -134,17 +134,18 @@ type app struct {
 	underTop, underBottom bool
 	barScrub              scrubState
 	npScrub               scrubState
-	backdropCache         backdropCache // the backdrop of Now Playing, as last painted
-	npArt                 *artwork      // the cover whose colors Now Playing shows
-	npCoverAt             ui.Rect       // where that cover stands, for the record to stand behind
-	homeArtURL            string        // the cover whose tint the home's background holds
-	homeTint              ui.Color      // the last tint the home's background took
-	songAccent            ui.Color      // the accent the chrome wears, of the song playing
-	sideBars              barState      // the mini bars on the sidebar's playing card
-	npCoverState          coverState    // the cover of Now Playing, as it is tilted and flicked
-	wallState             wallState     // the wall of the queue's covers, as it is dragged
-	quiet                 quietState    // the quiet parts of the song playing, for its hot comments
-	captions              captionState  // the episode playing's captions, and the model that writes them
+	backdropCache         backdropCache           // the backdrop of Now Playing, as last painted
+	npArt                 *artwork                // the cover whose colors Now Playing shows
+	npCoverAt             ui.Rect                 // where that cover stands, for the record to stand behind
+	swatches              map[string]*swatchCache // the picker's little pictures of each backdrop
+	homeArtURL            string                  // the cover whose tint the home's background holds
+	homeTint              ui.Color                // the last tint the home's background took
+	songAccent            ui.Color                // the accent the chrome wears, of the song playing
+	sideBars              barState                // the mini bars on the sidebar's playing card
+	npCoverState          coverState              // the cover of Now Playing, as it is tilted and flicked
+	wallState             wallState               // the wall of the queue's covers, as it is dragged
+	quiet                 quietState              // the quiet parts of the song playing, for its hot comments
+	captions              captionState            // the episode playing's captions, and the model that writes them
 	sig                   playerSig
 	quitting              bool
 
