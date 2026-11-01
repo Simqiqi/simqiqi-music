@@ -91,6 +91,15 @@ func (a *app) nowPlayingView(c *ui.Context) {
 
 	root := ui.Box(c.Key("now-playing")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
 		Background(ui.Hex("#0b0b0d")).TextColor(white)
+	// Without the line, the particles page leans its record after the
+	// pointer, wherever in the window it stands: the root sees every move.
+	root.HandleInput(func(ev ui.InputEvent) bool {
+		if ev.Kind == ui.InputPointerMove && a.npPane == paneParticles {
+			a.recTilt.tx = clamp01(ev.X/w)*2 - 1
+			a.recTilt.ty = clamp01(ev.Y/h)*2 - 1
+		}
+		return false
+	})
 	// The pointer is over the view whenever it is in the window.
 	pointerIn := root.Hovered()
 	root.Children(func() {
@@ -99,8 +108,15 @@ func (a *app) nowPlayingView(c *ui.Context) {
 		// paint over those in the flow.
 		ui.Column(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Children(func() { a.nowPlayingBody(c, tr, art, accent, w, h, pointerIn) })
 		// The backdrop's own choice, over everything the view paints, at
-		// the top right where nothing else is.
-		ui.Row(c).Absolute().Top(8).Right(12).Children(func() { a.backdropPicker(c, tint, "np-backdrop") })
+		// the top right where nothing else is; and beside it, the switch
+		// that keeps the line being sung on the particles page.
+		ui.Row(c).Absolute().Top(8).Right(12).Gap(8).AlignItems(ui.Center).Children(func() {
+			if a.npPane == paneParticles {
+				a.particleLyricPlace(c, tint)
+				a.particleLyricSwitch(c, tint)
+			}
+			a.backdropPicker(c, tint, "np-backdrop")
+		})
 	})
 }
 
@@ -110,7 +126,7 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	// An episode has what it is about and its captions in place of lyrics;
 	// a song, lyrics in place of those.
 	switch program := tr.ProgramID != 0; {
-	case program && a.npPane == paneWall:
+	case program && (a.npPane == paneWall || a.npPane == paneWall3D || a.npPane == paneParticles):
 		a.npPane = paneQueue
 	case program && (a.npPane == paneLyrics || a.npPane == paneStage):
 		a.npPane = paneProgram
@@ -127,6 +143,9 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	}
 	if a.npPane != paneWall {
 		a.wallState.track = 0
+	}
+	if a.npPane != paneWall3D {
+		a.wall3.track = 0
 	}
 	{
 		// The top strip drags the window; the chevron closes the view,
@@ -152,6 +171,18 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 		if a.npPane == paneWall {
 			// The wall takes the whole view too, under the song playing.
 			a.wallPane(c, tr, art, accent, w, h, pointerIn)
+			return
+		}
+		if a.npPane == paneWall3D {
+			// And so does the wall turning in depth, the posters its own
+			// show.
+			a.wall3DPane(c, tr, accent, w, h, pointerIn)
+			return
+		}
+		if a.npPane == paneParticles {
+			// And so does the record of particles the cover comes apart
+			// into.
+			a.particlePane(c, tr, art, accent, w, h, pointerIn)
 			return
 		}
 
@@ -308,6 +339,8 @@ const (
 	paneProgram
 	paneCaptions
 	paneWall
+	paneWall3D
+	paneParticles
 )
 
 // npTab is a tab of Now Playing: its pane, and what it says.
@@ -326,7 +359,7 @@ func (a *app) npTabs() []npTab {
 		}
 		return append(tabs, npTab{paneQueue, "待播清单"}, npTab{paneComments, "评论"})
 	}
-	return []npTab{{paneLyrics, "歌词"}, {paneStage, "律动"}, {paneQueue, "待播清单"}, {paneWall, "选歌"}, {paneComments, "评论"}}
+	return []npTab{{paneLyrics, "歌词"}, {paneStage, "律动"}, {paneQueue, "待播清单"}, {paneWall, "选歌"}, {paneWall3D, "海报墙"}, {paneParticles, "粒子"}, {paneComments, "评论"}}
 }
 
 func (a *app) paneTabs(c *ui.Context) {
@@ -342,6 +375,11 @@ func (a *app) paneTabs(c *ui.Context) {
 // choosePane shows pane i in Now Playing, remembering lyrics or the stage,
 // whichever was chosen, for the next song.
 func (a *app) choosePane(i int) {
+	// The record opens square to the eye: a lean left over from the page
+	// before is not the lean of this one.
+	if i == paneParticles && a.npPane != paneParticles {
+		a.recTilt = tiltState{}
+	}
 	a.npPane = i
 	if (i == paneLyrics || i == paneStage) && a.settings.LyricsStage != (i == paneStage) {
 		a.settings.LyricsStage = i == paneStage

@@ -204,6 +204,13 @@ func (a *app) stageLine(c *ui.Context, l *lyrics.Line, pos time.Duration, f, w, 
 		tiltLine(c, l, pos, w, fade, accent, a.settings.StageSparks)
 		return
 	}
+	a.foliaLine(c, l, pos, f, w, h, fade, accent)
+}
+
+// foliaLine sets the words of l as Folia's classic visualizer does, their
+// places drawn from the line itself, so that it falls the same way every
+// time: scattered a little, each springing in as it is sung.
+func (a *app) foliaLine(c *ui.Context, l *lyrics.Line, pos time.Duration, f, w, h, fade float32, accent ui.Color) {
 	seed := float64(l.At / time.Millisecond)
 	shapes := stageShapes(c, l, f)
 	// Where the line sits: to one side or the middle, a little up or down.

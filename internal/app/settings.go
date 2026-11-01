@@ -40,6 +40,13 @@ type settings struct {
 	// StageSparks throws sparks off each word on the stage as it is sung,
 	// whatever its style.
 	StageSparks bool `json:"stageSparks,omitempty"`
+	// ParticleLyricsOff keeps the line being sung off the particles page,
+	// where the record stands in the middle of the pane: the switch in its
+	// corner turns it back on, and it shows by default.
+	ParticleLyricsOff bool `json:"particleLyricsOff,omitempty"`
+	// ParticleLyricMid stands the line being sung across the middle of the
+	// particles page, over the record, rather than under it.
+	ParticleLyricMid bool `json:"particleLyricMid,omitempty"`
 	// Volume is where the volume was left, from 0 to 1.
 	Volume float64 `json:"volume"`
 	// Normalize evens out the loudness of tracks, by what NetEase

@@ -144,6 +144,9 @@ type app struct {
 	sideBars              barState                // the mini bars on the sidebar's playing card
 	npCoverState          coverState              // the cover of Now Playing, as it is tilted and flicked
 	wallState             wallState               // the wall of the queue's covers, as it is dragged
+	wall3                 wall3State              // the wall of covers turning in depth, as it is spun
+	recAt, recLyric       ui.Rect                 // where the particles page stands its record, and the line being sung
+	recTilt               tiltState               // how the record leans after the pointer
 	quiet                 quietState              // the quiet parts of the song playing, for its hot comments
 	captions              captionState            // the episode playing's captions, and the model that writes them
 	sig                   playerSig
