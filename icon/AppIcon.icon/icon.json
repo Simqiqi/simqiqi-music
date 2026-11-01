@@ -3,36 +3,14 @@
     {
       "layers": [
         {
-          "image-name": "arm.svg",
-          "name": "arm",
-          "glass": true
+          "image-name": "cat.png",
+          "name": "cat",
+          "glass": false
         }
       ],
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.5
-      },
-      "translucency": {
-        "enabled": false,
-        "value": 0.5
-      }
-    },
-    {
-      "layers": [
-        {
-          "image-name": "label.svg",
-          "name": "label",
-          "glass": true
-        },
-        {
-          "image-name": "record.svg",
-          "name": "record",
-          "glass": true
-        }
-      ],
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.5
+        "opacity": 0.0
       },
       "translucency": {
         "enabled": false,
@@ -50,8 +28,8 @@
     {
       "value": {
         "linear-gradient": [
-          "srgb:1.00000,0.32157,0.30196,1.00000",
-          "srgb:0.84706,0.04314,0.15294,1.00000"
+          "srgb:1.00000,0.20000,0.34118,1.00000",
+          "srgb:0.89804,0.00392,0.20000,1.00000"
         ],
         "orientation": {
           "start": {
@@ -69,8 +47,8 @@
       "appearance": "dark",
       "value": {
         "linear-gradient": [
-          "srgb:0.24000,0.22000,0.24000,1.00000",
-          "srgb:0.09000,0.08000,0.09000,1.00000"
+          "srgb:0.31373,0.20392,0.24314,1.00000",
+          "srgb:0.15686,0.08627,0.10588,1.00000"
         ],
         "orientation": {
           "start": {

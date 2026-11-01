@@ -1,220 +1,189 @@
-// Command icon draws the app icons: the layers of AppIcon.icon, the Icon
-// Composer document that macOS 26 and later render in Liquid Glass, and
-// resources/icon.png, the same icon as macOS draws it, on the grid of older
-// macOS icons, for older macOS and Windows; and from AppIcon-dev.icon, cream
-// where the app's is red, resources/icon-dev.png, the icon of mygo dev
-// builds.
+// Command icon draws the app icons: the cat that fills them, its layer in
+// AppIcon.icon, the Icon Composer document macOS 26 and later render in
+// Liquid Glass, and resources/icon.png, the same icon flattened, for older
+// macOS and Windows; and from AppIcon-dev.icon, cream where the app's is
+// red, resources/icon-dev.png, the icon of mygo dev builds.
 //
-// Run it from the repository root on a Mac with Xcode 26 or later:
+// Run it from the repository root:
 //
 //	go run ./icon
 //
-// The icon.json of each document, its background, glass and dark-mode
-// colors, is edited by hand or in Icon Composer.
+// The cat is a picture rather than drawn paths, so this needs no Xcode:
+// icon/cat.png is scaled to the grid and laid on the background, and
+// icon.png is that same drawing flattened, so the document and the PNG
+// cannot disagree. The background of each document, and its dark-mode
+// colors, are still edited by hand in icon.json or in Icon Composer.
 package main
 
 import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
 	"image/png"
 	"log"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
-const ictool = "/Applications/Xcode.app/Contents/Applications/Icon Composer.app/Contents/Executables/ictool"
+// size is the grid the icons are drawn on: Icon Composer's full-bleed
+// canvas, which macOS masks to its own shape, and the size of the PNGs.
+const size = 1024
+
+// portrait is the cat, keyed off the color it was drawn on, black on
+// nothing. It fills the grid the way the picture fills its own frame.
+const portrait = "icon/cat.png"
 
 // icons are the documents drawn, with the PNG rendered from each and the
-// colors of its tonearm: the gradient and the cap on its pivot.
+// two ends of its background, from the top of the icon down.
 var icons = []struct {
-	document, output   string
-	top, bottom, pivot string
+	document, output string
+	top, bottom      string
 }{
-	// Red, with a white tonearm.
-	{"icon/AppIcon.icon", "resources/icon.png", "#FFFFFF", "#E6E3E5", "#D9D5D8"},
-	// Cream, with a red one to match the label.
-	{"icon/AppIcon-dev.icon", "resources/icon-dev.png", "#FF5B5B", "#E3122C", "#FFE1DE"},
+	// Red, with the cat sitting on it.
+	{"icon/AppIcon.icon", "resources/icon.png", "#FF3357", "#E50133"},
+	// Cream, so a dev build's icon is not taken for the app's.
+	{"icon/AppIcon-dev.icon", "resources/icon-dev.png", "#F9EEE3", "#E4C7AC"},
 }
 
-// A record on Icon Composer's 1024-point full-bleed canvas, seen close up:
-// larger than the canvas, it runs off the left and bottom edges. And the
-// tonearm over it, from its pivot to the headshell resting on the grooves.
-var (
-	rec   = struct{ cx, cy, r float64 }{330, 712, 560}
-	pivot = image.Pt(820, 214)
-	head  = image.Pt(585, 520)
-)
-
 func main() {
+	src, err := os.Open(portrait)
+	if err != nil {
+		log.Fatal(err)
+	}
+	picture, err := png.Decode(src)
+	src.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	cat := fit(picture, size)
 	for _, ic := range icons {
-		layers := map[string]string{
-			"arm.svg":    armSVG(ic.top, ic.bottom, ic.pivot),
-			"record.svg": recordSVG(),
-			"label.svg":  labelSVG(),
+		// The layer the document draws: the cat alone, on nothing.
+		if err := write(filepath.Join(ic.document, "Assets", "cat.png"), cat); err != nil {
+			log.Fatal(err)
 		}
-		for name, s := range layers {
-			if err := os.WriteFile(filepath.Join(ic.document, "Assets", name), []byte(s), 0o644); err != nil {
-				log.Fatal(err)
-			}
-		}
-		if err := render(ic.document, ic.output); err != nil {
+		icon := ground(ic.top, ic.bottom)
+		over(icon, cat, image.Pt(0, 0))
+		if err := write(ic.output, icon); err != nil {
 			log.Fatal(err)
 		}
 	}
 }
 
-func svg(body string) string {
-	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">` + "\n" + body + "\n</svg>\n"
-}
-
-func n(v float64) string {
-	return strings.TrimSuffix(strings.TrimRight(fmt.Sprintf("%.2f", v), "0"), ".")
-}
-
-func armSVG(top, bottom, cap string) string {
-	p := pivot
-	length := math.Hypot(float64(head.X-p.X), float64(head.Y-p.Y))
-	angle := math.Atan2(float64(head.Y-p.Y), float64(head.X-p.X)) * 180 / math.Pi
-	end := float64(p.X) + length - 30
-	return svg(fmt.Sprintf(`<defs>
-<linearGradient id="m" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0" stop-color="%[11]s"/><stop offset="1" stop-color="%[12]s"/></linearGradient>
-</defs>
-<g transform="rotate(%[3]s %[1]d %[2]d)">
-<rect x="%[4]d" y="%[5]d" width="64" height="52" rx="15" fill="url(#m)"/>
-<rect x="%[1]d" y="%[6]d" width="%[7]s" height="34" rx="17" fill="url(#m)"/>
-<rect x="%[8]s" y="%[9]d" width="92" height="56" rx="14" fill="url(#m)" transform="rotate(28 %[10]s %[2]d)"/>
-</g>
-<circle cx="%[1]d" cy="%[2]d" r="72" fill="url(#m)"/>
-<circle cx="%[1]d" cy="%[2]d" r="27" fill="%[13]s"/>`,
-		p.X, p.Y, n(angle), p.X-104, p.Y-26, p.Y-17, n(length-30), n(end-22), p.Y-28, n(end), top, bottom, cap))
-}
-
-func recordSVG() string {
-	var b strings.Builder
-	fmt.Fprintf(&b, `<defs>
-<radialGradient id="d" cx="%[1]s" cy="%[2]s" r="%[3]s" gradientUnits="userSpaceOnUse">
-<stop offset="0.35" stop-color="#2A2A30"/><stop offset="0.95" stop-color="#17171B"/><stop offset="1" stop-color="#0E0E11"/></radialGradient>
-</defs>
-<circle cx="%[1]s" cy="%[2]s" r="%[3]s" fill="url(#d)"/>
-<circle cx="%[1]s" cy="%[2]s" r="%[4]s" fill="none" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="3"/>
-`, n(rec.cx), n(rec.cy), n(rec.r), n(rec.r-8))
-	// Grooves, unevenly bright like the bands of tracks.
-	for i, r := 0, rec.r*0.42; r < rec.r-12; i, r = i+1, r+7 {
-		fmt.Fprintf(&b, `<circle cx="%s" cy="%s" r="%s" fill="none" stroke="#FFFFFF" stroke-opacity="%s" stroke-width="1.4"/>`+"\n",
-			n(rec.cx), n(rec.cy), n(r), n([]float64{0.05, 0.08, 0.04, 0.07}[i%4]))
-	}
-	b.WriteString(sheen(-62, 54, 0.2, rec.r*0.39, rec.r-10))
-	b.WriteString(sheen(118, 54, 0.14, rec.r*0.39, rec.r-10))
-	return svg(strings.TrimSuffix(b.String(), "\n"))
-}
-
-// sheen is a soft band of reflected light across the grooves, centered on
-// the angle mid, in degrees: slices whose opacity falls off smoothly from
-// the band's middle, as SVG has no conic gradient.
-func sheen(mid, width, peak, r0, r1 float64) string {
-	const slices = 48
-	pt := func(a, r float64) string {
-		a *= math.Pi / 180
-		return n(rec.cx+math.Cos(a)*r) + " " + n(rec.cy+math.Sin(a)*r)
-	}
-	var b strings.Builder
-	for i := range slices {
-		a0 := mid - width/2 + width*float64(i)/slices
-		a1 := a0 + width/slices + 0.15 // overlap, so no seams show
-		t := (float64(i)+0.5)/slices*2 - 1
-		o := math.Round(peak*math.Exp(-t*t*3.2)*1000) / 1000
-		fmt.Fprintf(&b, `<path d="M%sL%sA%s %s 0 0 1 %sL%sA%s %s 0 0 0 %sZ" fill="#FFFFFF" fill-opacity="%s"/>`+"\n",
-			pt(a0, r0), pt(a0, r1), n(r1), n(r1), pt(a1, r1), pt(a1, r0), n(r0), n(r0), pt(a0, r0), n(o))
-	}
-	return b.String()
-}
-
-func labelSVG() string {
-	return svg(fmt.Sprintf(`<defs>
-<linearGradient id="l" x1="0" y1="0" x2="0" y2="1">
-<stop offset="0" stop-color="#FF5B5B"/><stop offset="1" stop-color="#E3122C"/></linearGradient>
-</defs>
-<circle cx="%[1]s" cy="%[2]s" r="%[3]s" fill="url(#l)"/>
-<circle cx="%[1]s" cy="%[2]s" r="%[4]s" fill="none" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="3"/>
-<circle cx="%[1]s" cy="%[2]s" r="%[5]s" fill="#FFF6F2"/>`, n(rec.cx), n(rec.cy), n(rec.r*0.358), n(rec.r*0.247), n(rec.r*0.052)))
-}
-
-// render has ictool draw document as macOS does, and lays it on the
-// 1024-pixel grid of macOS icons at output: an 824-pixel body, centered,
-// over a soft shadow.
-func render(document, output string) error {
-	const canvas, body = 1024, 824
-	dir, err := os.MkdirTemp("", "icon")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(dir)
-	drawn := filepath.Join(dir, "icon.png")
-	size := fmt.Sprint(body)
-	if out, err := exec.Command(ictool, document, "--export-image", "--output-file", drawn,
-		"--platform", "macOS", "--rendition", "Default", "--width", size, "--height", size, "--scale", "1").CombinedOutput(); err != nil {
-		return fmt.Errorf("ictool (it comes with Xcode 26 or later): %v\n%s", err, out)
-	}
-	// ictool draws in Display P3, and the PNG this writes carries no
-	// profile, which readers take as sRGB: convert, or the reds go dull.
-	if out, err := exec.Command("sips", "--matchTo", "/System/Library/ColorSync/Profiles/sRGB Profile.icc", drawn).CombinedOutput(); err != nil {
-		return fmt.Errorf("sips: %v\n%s", err, out)
-	}
-	f, err := os.Open(drawn)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	src, err := png.Decode(f)
-	if err != nil {
-		return err
-	}
-
-	at := image.Pt((canvas-body)/2, (canvas-body)/2)
-	dst := image.NewNRGBA(image.Rect(0, 0, canvas, canvas))
-	shadow := image.NewAlpha(dst.Bounds())
-	draw.Draw(shadow, src.Bounds().Add(at).Add(image.Pt(0, 12)), src, src.Bounds().Min, draw.Src)
-	blur(shadow, 10)
-	draw.DrawMask(dst, dst.Bounds(), image.NewUniform(color.NRGBA{A: 72}), image.Point{}, shadow, image.Point{}, draw.Over)
-	draw.Draw(dst, src.Bounds().Add(at), src, src.Bounds().Min, draw.Over)
-
-	out, err := os.Create(output)
-	if err != nil {
-		return err
-	}
-	if err := png.Encode(out, dst); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
-}
-
-// blur approximates a Gaussian blur of the given radius with three box
-// blurs in each direction.
-func blur(m *image.Alpha, radius int) {
-	w, h := m.Rect.Dx(), m.Rect.Dy()
-	buf := make([]uint8, len(m.Pix))
-	pass := func(src, dst []uint8, count, length, stride, step int) {
-		for line := range count {
-			base := line * stride
-			sum := 0
-			for i := -radius; i <= radius; i++ {
-				sum += int(src[base+min(max(i, 0), length-1)*step])
+// fit scales src to a size x size frame, sampling bilinearly: the picture
+// is drawn a touch larger than it was taken, so its edges, feathered when
+// it was keyed, stay soft.
+func fit(src image.Image, n int) *image.NRGBA {
+	b := src.Bounds()
+	w, h := b.Dx(), b.Dy()
+	dst := image.NewNRGBA(image.Rect(0, 0, n, n))
+	for y := 0; y < n; y++ {
+		sy := (float64(y)+0.5)*float64(h)/float64(n) - 0.5
+		y0 := int(math.Floor(sy))
+		fy := sy - float64(y0)
+		for x := 0; x < n; x++ {
+			sx := (float64(x)+0.5)*float64(w)/float64(n) - 0.5
+			x0 := int(math.Floor(sx))
+			fx := sx - float64(x0)
+			// The four corners about the sample, weighted. Colors are
+			// summed premultiplied by their alpha, so that a transparent
+			// neighbor adds no color of its own.
+			var r, g, bl, a float64
+			for _, c := range [...]struct {
+				dx, dy int
+				w      float64
+			}{
+				{0, 0, (1 - fx) * (1 - fy)}, {1, 0, fx * (1 - fy)},
+				{0, 1, (1 - fx) * fy}, {1, 1, fx * fy},
+			} {
+				px := b.Min.X + min(max(x0+c.dx, 0), w-1)
+				py := b.Min.Y + min(max(y0+c.dy, 0), h-1)
+				p := color.NRGBAModel.Convert(src.At(px, py)).(color.NRGBA)
+				k := float64(p.A) / 255 * c.w
+				r, g, bl, a = r+float64(p.R)*k, g+float64(p.G)*k, bl+float64(p.B)*k, a+k
 			}
-			for i := range length {
-				dst[base+i*step] = uint8(sum / (2*radius + 1))
-				sum += int(src[base+min(i+radius+1, length-1)*step]) - int(src[base+max(i-radius, 0)*step])
+			o := dst.PixOffset(x, y)
+			if a > 0 {
+				dst.Pix[o] = clamp8(r / a)
+				dst.Pix[o+1] = clamp8(g / a)
+				dst.Pix[o+2] = clamp8(bl / a)
 			}
+			dst.Pix[o+3] = clamp8(a * 255)
 		}
 	}
-	for range 3 {
-		pass(m.Pix, buf, h, w, m.Stride, 1)
-		pass(buf, m.Pix, w, h, 1, m.Stride)
+	return dst
+}
+
+// ground is the background of an icon: top at the top, bottom at the foot,
+// a straight line between them, and opaque to the very corner, so that
+// nothing of the desktop shows through the icon.
+func ground(top, bottom string) *image.NRGBA {
+	a, b := rgb(top), rgb(bottom)
+	img := image.NewNRGBA(image.Rect(0, 0, size, size))
+	for y := 0; y < size; y++ {
+		t := float64(y) / float64(size-1)
+		c := color.NRGBA{
+			clamp8(255 * (a[0] + (b[0]-a[0])*t)),
+			clamp8(255 * (a[1] + (b[1]-a[1])*t)),
+			clamp8(255 * (a[2] + (b[2]-a[2])*t)),
+			255,
+		}
+		for x := 0; x < size; x++ {
+			img.SetNRGBA(x, y, c)
+		}
 	}
+	return img
+}
+
+// over lays src on dst at at, source over: a half-transparent pixel of the
+// cat lets the background through rather than punching a hole in it.
+func over(dst, src *image.NRGBA, at image.Point) {
+	b := src.Bounds()
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			s := src.NRGBAAt(x, y)
+			if s.A == 0 {
+				continue
+			}
+			px, py := at.X+x, at.Y+y
+			if !(image.Pt(px, py).In(dst.Bounds())) {
+				continue
+			}
+			k := float64(s.A) / 255
+			d := dst.NRGBAAt(px, py)
+			dst.SetNRGBA(px, py, color.NRGBA{
+				clamp8(float64(s.R)*k + float64(d.R)*(1-k)),
+				clamp8(float64(s.G)*k + float64(d.G)*(1-k)),
+				clamp8(float64(s.B)*k + float64(d.B)*(1-k)),
+				255,
+			})
+		}
+	}
+}
+
+// rgb reads a color written #RRGGBB, as the backgrounds are.
+func rgb(s string) [3]float64 {
+	v, err := strconv.ParseUint(strings.TrimPrefix(s, "#"), 16, 32)
+	if err != nil {
+		log.Fatalf("color %q: %v", s, err)
+	}
+	return [3]float64{float64(v>>16&0xFF) / 255, float64(v>>8&0xFF) / 255, float64(v&0xFF) / 255}
+}
+
+func clamp8(v float64) uint8 {
+	return uint8(min(max(math.Round(v), 0), 255))
+}
+
+func write(path string, img image.Image) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	if err := png.Encode(f, img); err != nil {
+		f.Close()
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	return f.Close()
 }

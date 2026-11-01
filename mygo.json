@@ -2,7 +2,7 @@
   "name": "MyGo 云音乐",
   "identifier": "dev.egoist.cloudmusic",
   "slug": "mygo-cloudmusic",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "out": "build",
   "updates": {
     "publicKey": "WzJsOGNIuf6mcEqo5ff8jub+NoQQOEk4JXreLPYjgyQ=",
@@ -14,7 +14,11 @@
   },
   "linux": {
     "comment": "第三方网易云音乐桌面客户端",
-    "categories": ["AudioVideo", "Audio", "Player"],
+    "categories": [
+      "AudioVideo",
+      "Audio",
+      "Player"
+    ],
     "webview": false
   }
 }
