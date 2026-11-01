@@ -277,11 +277,6 @@ func (a *app) settingsBody(c *ui.Context, p palette, liquid bool) {
 				a.changed()
 			}
 		})
-		row("烟雾背景", "播放页的背景化作封面色调的烟雾，缓缓升起，随低音起伏；仍在打磨，会多用一些电量", func() {
-			if ui.Switch(c.Key("fog"), &s.Fog).Label("烟雾背景").Changed() {
-				a.changed()
-			}
-		})
 	})
 
 	group("账号", func() {

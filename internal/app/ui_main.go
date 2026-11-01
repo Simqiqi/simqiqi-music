@@ -66,7 +66,7 @@ func (a *app) view(c *ui.Context) {
 			bg := a.homeTinted(&p)
 			liquid := a.settings.glassOn()
 			if liquid {
-				page.Background(page.AnimateColor("bg", bg, ui.Animation{Duration: 900 * time.Millisecond}))
+				a.ground(page, bg)
 			}
 			side := ui.Column(c).Width(sidebarWidth)
 			switch {
@@ -87,7 +87,7 @@ func (a *app) view(c *ui.Context) {
 			main := ui.Box(c.Key("main")).Grow(1)
 			if !liquid {
 				main.BorderWidth(0, 0, 0, 1).BorderColor(p.hairline)
-				main.Background(main.AnimateColor("bg", bg, ui.Animation{Duration: 900 * time.Millisecond}))
+				a.ground(main, bg)
 			}
 			main.Children(func() {
 				a.content(c)

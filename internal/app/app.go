@@ -39,13 +39,15 @@ type route struct {
 // app is the state both windows show. Everything in it is read and changed
 // on the main thread: by the views, and by goroutines through post.
 type app struct {
-	win   *mygo.Window
-	notch *notch
-	mini  miniPlayer // the card that stands in the window's place
-	tray  *mygo.Tray // the icon in the menu bar or notification area, while it shows
-	art   *artCache
-	pl    *player.Player
-	pal   palette
+	win    *mygo.Window
+	notch  *notch
+	mini   miniPlayer // the card that stands in the window's place
+	tray   *mygo.Tray // the icon in the menu bar or notification area, while it shows
+	art    *artCache
+	pl     *player.Player
+	pal    palette
+	wash   wallpaper // the colors the app opened onto: see newWallpaper
+	opened time.Time // when it opened: the clock the wallpaper breathes by
 
 	route   route
 	history []route
@@ -134,6 +136,7 @@ type app struct {
 	npScrub               scrubState
 	backdropCache         backdropCache // the backdrop of Now Playing, as last painted
 	npArt                 *artwork      // the cover whose colors Now Playing shows
+	npCoverAt             ui.Rect       // where that cover stands, for the record to stand behind
 	homeArtURL            string        // the cover whose tint the home's background holds
 	homeTint              ui.Color      // the last tint the home's background took
 	songAccent            ui.Color      // the accent the chrome wears, of the song playing
@@ -215,6 +218,8 @@ func Run() error {
 		queueDrag:  queueDrag{from: -1},
 		cacheUsed:  -1,
 		sleep:      &sleepTimer{},
+		wash:       newWallpaper(),
+		opened:     time.Now(),
 	}
 	moveOldData()
 	a.useUpdater()

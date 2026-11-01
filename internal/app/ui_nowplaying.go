@@ -98,6 +98,9 @@ func (a *app) nowPlayingView(c *ui.Context) {
 		// Over the backdrop, which is positioned too: positioned elements
 		// paint over those in the flow.
 		ui.Column(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Children(func() { a.nowPlayingBody(c, tr, art, accent, w, h, pointerIn) })
+		// The backdrop's own choice, over everything the view paints, at
+		// the top right where nothing else is.
+		ui.Row(c).Absolute().Top(8).Right(12).Children(func() { a.backdropPicker(c, tint, "np-backdrop") })
 	})
 }
 

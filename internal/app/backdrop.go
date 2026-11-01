@@ -18,13 +18,15 @@ import (
 // window across, which shows scaled up as smooth as it is: what moves over
 // it then draws one image under it.
 //
-// The experimental fog (settings.Fog) makes it alive, as NetEase's mobile
+// The experimental fog (settings.Backdrop) makes it alive, as NetEase's mobile
 // player's is: fog of the cover's color, billowing as it rises slowly
 // through a deep shade of it, with specks of dust glinting in it, brighter
-// and thicker with the bass. A shader paints it into a canvas, half the
-// window across on the GPU, thirty times a second while the music plays;
-// the CPU paints it still. Paused, the fog glides to a stop, and the
-// canvas stays as it is.
+// and thicker with the bass. The stars make it a night sky of that shade,
+// stars drifting up through it in three depths, dust between them and a
+// nebula of the cover's color billowing behind (stars.go). A shader paints
+// either into a canvas, half the window across on the GPU, thirty times a
+// second while the music plays; the CPU paints it still. Paused, it glides
+// to a stop, and the canvas stays as it is.
 //
 // Another song's backdrop fades in over the last one's, which stays as it
 // was, in a canvas of its own, until it is gone.
@@ -114,7 +116,7 @@ type backdropCache struct {
 	fadeAt time.Time  // when it began to
 	art    *artwork
 	tint   ui.Color
-	fog    bool
+	style  string    // what filled it: none for the gradient, fog or stars
 	at     time.Time // when it was painted
 	drift  float64   // the clouds' time, in seconds, which stops on pause
 	speed  float64   // how fast drift goes: 1 playing, 0 paused
@@ -122,16 +124,17 @@ type backdropCache struct {
 	last   time.Time
 }
 
-// backdrop paints the backdrop behind Now Playing, still or fog.
+// backdrop paints the backdrop behind Now Playing, still or moving.
 func (a *app) backdrop(c *ui.Context, art *artwork, tint ui.Color) {
 	pl := a.pl
-	fog, still := a.settings.Fog, c.Preferences().ReduceMotion
+	style, still := a.settings.backdropStyle(), c.Preferences().ReduceMotion
+	moving := style != ""
 	ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
-		// The CPU, drawing the fog for want of a GPU, paints far fewer
-		// pixels, and those once a song: the fog stays still.
+		// The CPU, drawing the fog or the sky for want of a GPU, paints
+		// far fewer pixels, and those once a song: it stays still.
 		gpu := p.Accelerated()
 		div := float32(8)
-		if fog && gpu {
+		if moving && gpu {
 			div = 2
 		}
 		cw, ch := int(r.W/div)+1, int(r.H/div)+1
@@ -146,21 +149,38 @@ func (a *app) backdrop(c *ui.Context, art *artwork, tint ui.Color) {
 			// Another song: the last one's stays as it was, fading out.
 			bd.canvas, bd.before, bd.fadeAt = bd.before, bd.canvas, now
 		}
-		moving := fog && gpu && !still
+		moving = moving && gpu && !still
 		lv, live := pl.Levels()
 		moved := bd.step(now, pl.Playing() && moving, lv, live && moving)
 		due := now.Sub(bd.at) >= backdropFrame-2*time.Millisecond
-		if bd.canvas == nil || bd.art != art || bd.tint != tint || bd.fog != fog || moved && due {
+		if bd.canvas == nil || bd.art != art || bd.tint != tint || bd.style != style || moved && due {
 			if bd.canvas == nil {
 				bd.canvas = ui.NewCanvas(cw, ch)
 			}
-			bd.art, bd.tint, bd.fog, bd.at = art, tint, fog, now
+			bd.art, bd.tint, bd.style, bd.at = art, tint, style, now
 			bass := bd.level.group(0, 6)
 			bd.canvas.Draw(p, func(cp *ui.Painter) {
 				box := ui.Rect{W: float32(cw), H: float32(ch)}
-				if fog {
+				switch style {
+				case "fog":
 					drawFog(cp, box, tint, float32(bd.drift), bass)
-				} else {
+				case "stars":
+					drawStars(cp, box, tint, float32(bd.drift), bass)
+				case "terrain":
+					drawTerrain(cp, box, tint, float32(bd.drift), terrainBands(&bd.level), bass)
+				case "ripple":
+					// The cover itself, blurred, under the water: without
+					// one loaded, the gradient stands in for it.
+					if art != nil && art.backdrop != nil {
+						drawRipple(cp, box, art.backdrop, tint, float32(bd.drift), bass)
+					} else {
+						drawBackdrop(cp, box, art, tint)
+					}
+				case "vinyl":
+					drawVinyl(cp, box, r.W, a.npCoverAt, tint, float32(bd.drift))
+				case "water":
+					drawWatercolor(cp, box, tint, float32(bd.drift), bass)
+				default:
 					drawBackdrop(cp, box, art, tint)
 				}
 			})

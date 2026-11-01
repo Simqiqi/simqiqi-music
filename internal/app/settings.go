@@ -50,8 +50,12 @@ type settings struct {
 	HotComments bool `json:"hotComments"`
 	// Fog fills Now Playing's backdrop with fog of the cover's color,
 	// rising and swelling with the bass: an experiment the listener turns
-	// on.
+	// on. Backdrop holds the same answer, and what it says wins.
 	Fog bool `json:"fog"`
+	// Backdrop is what fills Now Playing's backdrop: empty for the cover's
+	// gradient, "fog" for fog rising through it, "stars" for a sky of the
+	// cover's hue with stars drifting up in it (backdrops).
+	Backdrop string `json:"backdrop,omitempty"`
 	// Transition fades a song out before it ends and the next one in as
 	// it begins, and fades each page in as it takes the place of another.
 	// It holds no answer for the listener who never said: the default is
@@ -102,6 +106,49 @@ func (s settings) transitions() bool {
 // says otherwise.
 func (s settings) glassOn() bool {
 	return s.Glass == nil || *s.Glass
+}
+
+// backdropChoice is a backdrop Now Playing may wear: its id in the
+// settings, and what the settings call it.
+type backdropChoice struct {
+	id, label string
+}
+
+// backdrops are the backdrops Now Playing may wear, the cover's gradient
+// first: the settings show them in this order.
+var backdrops = []backdropChoice{
+	{"", "渐变"},
+	{"fog", "烟雾"},
+	{"stars", "星野"},
+	{"terrain", "地形"},
+	{"ripple", "涟漪"},
+	{"vinyl", "唱片"},
+	{"water", "水彩"},
+}
+
+// backdropStyle is what Now Playing's backdrop is: the cover's gradient,
+// the fog, the stars, the hills, the water, the record or the washes. Fog,
+// set before the listener could choose, still answers for the fog.
+func (s settings) backdropStyle() string {
+	style := s.Backdrop
+	if style == "" && s.Fog {
+		style = "fog"
+	}
+	// A backdrop no longer offered, from a version that had it, makes for
+	// the gradient rather than for nothing.
+	for _, b := range backdrops {
+		if b.id == style {
+			return style
+		}
+	}
+	return ""
+}
+
+// setBackdrop makes style the backdrop, and the fog flag agree with it,
+// so that neither speaks for the other.
+func (s *settings) setBackdrop(style string) {
+	s.Backdrop = style
+	s.Fog = style == "fog"
 }
 
 // Where the clarity slider ends: below, the glass is a fog, and above,
