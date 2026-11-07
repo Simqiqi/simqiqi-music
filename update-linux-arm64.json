@@ -1,0 +1,42 @@
+{
+  "version": "0.3.6",
+  "notes": "- 本版本请考虑更新：**UI 界面重排**，新增 **Tab 沉浸模式**，侧栏交互，底部播放条彩虹进度，歌词页向下箭头改为 ESC 返回\n- 移除「关注动态」入口，更换新接口\n- 修复了在部分设备下界面滑动卡顿、VIP 歌曲播放失败问题",
+  "date": "2026-11-07T09:46:56Z",
+  "url": "https://gh-proxy.com/https://github.com/Simqiqi/Echo-music/releases/download/v0.3.6/echo-cloudmusic-0.3.6-linux-arm64.tar.gz",
+  "size": 7089677,
+  "signature": "xSPm/3u2jZ1h+CkKPrmnf7aOEcwjE9gn5llwgfEByR4p5ey/W0309OpBUDKl/dg9lStE7d5Nwi9v1LNH2gCCAA==",
+  "deltas": [
+    {
+      "from": "0.3.5",
+      "url": "https://gh-proxy.com/https://github.com/Simqiqi/Echo-music/releases/download/v0.3.6/echo-cloudmusic-0.3.5-to-0.3.6-linux-arm64.delta",
+      "size": 534819,
+      "signature": "kFQGizZNyByH58aIWWGpStxMRWjzTG3cVmLR38r13aK8QzjijO8oFVWa19Rd1ZN6ahjcuK3mfWxh9Icsp2hmBQ=="
+    },
+    {
+      "from": "0.3.4",
+      "url": "https://gh-proxy.com/https://github.com/Simqiqi/Echo-music/releases/download/v0.3.6/echo-cloudmusic-0.3.4-to-0.3.6-linux-arm64.delta",
+      "size": 711100,
+      "signature": "oB6x1mmErz5Ch68pz9hmhVERUQlS13RUD+DK+SKREIYMjRkkGBaLpHGBTIu0mvAKSRRBpcjFLvFk8Ap7arM3BQ=="
+    },
+    {
+      "from": "0.3.3",
+      "url": "https://gh-proxy.com/https://github.com/Simqiqi/Echo-music/releases/download/v0.3.6/echo-cloudmusic-0.3.3-to-0.3.6-linux-arm64.delta",
+      "size": 755690,
+      "signature": "LFqogaAGW8EonT+Bo54rY7mhlKJyldgndy26uw6HEtVgeGTfe2uiEd0W4T6tgqm11m45DN3RCEMcfPVzKPc2Dg=="
+    }
+  ],
+  "previous": [
+    {
+      "version": "0.3.5",
+      "url": "https://gh-proxy.com/https://github.com/Simqiqi/simqiqi-music/releases/download/v0.3.5/echo-cloudmusic-0.3.5-linux-arm64.tar.gz",
+      "size": 7092567,
+      "signature": "DlHlNJ9hP2sWz/ZL5r7oAdxtoDMPIxnwW/Daj4xjAvNOoKG4NDORd20HGigTT+qN+QDBLuwdgspPrmtlXhhEDA=="
+    },
+    {
+      "version": "0.3.4",
+      "url": "https://gh-proxy.com/https://github.com/Simqiqi/simqiqi-music/releases/download/v0.3.4/echo-cloudmusic-0.3.4-linux-arm64.tar.gz",
+      "size": 7137452,
+      "signature": "ay4lXL2L60qZvC5mlF6OO4C972yZxMuXsuAPtYM+ym1++S/CJqBHVXtxTFQCfKvt+kOGf3WPfz7KviKpYAFtAg=="
+    }
+  ]
+}
